@@ -1,8 +1,8 @@
 # 5.0 acceptance ledger
 
-**Status: unpublished development candidate. Release approval is not granted.**
+**Version 5.0.0: publication approved. Verification scope and remaining checks are documented below.**
 
-Branch: `codex/knightline-5.0`, isolated from the published `main`. The older release is untouched. A passing fixture suite does not close the reported live-game blocker.
+The 5.0 implementation was developed on `codex/knightline-5.0`; release preparation uses `codex/knightline-5.0-release`. Earlier versioned releases remain available. Publication approval does not certify the unverified workflows below.
 
 ## Evidence categories
 
@@ -36,16 +36,16 @@ Direct access to the existing Chrome session was unavailable under the computer-
 - All four promotion choices passed on the actual public Chess.com analysis board. Lichess custom-FEN URLs returned an external verification challenge, so its real-site special-move check remains unverified. No access challenge was bypassed.
 - Redacted Gitleaks scans found no secrets in the staged source or extracted package. Publication scanning excludes only known public CI/Emscripten virtual-home defaults from its personal-path rule. Pinned engine/source/network/licence hashes and extracted ZIP file hashes were verified.
 
-## Release blockers still requiring user-controlled verification
+## Outstanding compatibility verification
 
 - Install the candidate on the affected Chrome setup and successfully repeat the previously failing live-board analysis. The old report is captured and its exact position works locally; the affected installed 5.0 pipeline still needs confirmation.
 - Complete controlled user-owned games on Chess.com and Lichess as both colours, with rematch and page refresh. Validate actual resulting moves, including special moves and underpromotions. Do not test against an uninvolved opponent.
 - Verify signed-in live, daily, puzzle/training, bot, study and spectator workflows, game-end markers, history browsing, reconnects and manual interruption on both sites. Route capability is implemented; this is not a claim that every workflow has passed.
 - Verify desktop Edge and the affected Chrome version/profile, plus flipped/resized boards, actual site animations, rapid moves, multiple genuine boards and promotion dialogs.
 - Complete the affected user's final installed-package check. Automated extracted-package checks do not replace that confirmation.
-- Review the candidate's source, compatibility evidence, checksums and secret/publication scan results, then obtain explicit release approval.
+- Continue validating the compatibility matrix against actual signed-in workflows; report regressions with version and position details.
 
-No merge, tag, push, release publication, or replacement of the existing release is authorized before these gates close and the user approves the tested candidate.
+Publication of 5.0.0 was explicitly authorized with these checks outstanding. None of the outstanding checks is recorded as passed.
 
 ## Reproduce the local checks
 
@@ -60,7 +60,7 @@ npm run test:live
 npm run package
 ```
 
-Set `KNIGHTLINE_EXTENSION_DIR` to the generated unpacked package when rerunning `test:engine` and `test:extension`. A per-file `PACKAGE-MANIFEST.json` and ZIP `SHA256SUMS.txt` accompany the candidate. These are local build artifacts, not a published release.
+Set `KNIGHTLINE_EXTENSION_DIR` to the generated unpacked package when rerunning `test:engine` and `test:extension`. A per-file `PACKAGE-MANIFEST.json` and ZIP `SHA256SUMS.txt` accompany the candidate. These artifacts accompany the GitHub release; local test reports are excluded from the distribution.
 
 
 

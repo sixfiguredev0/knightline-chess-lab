@@ -62,6 +62,6 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; connect-src 'self' https://chess-api.com; worker-src 'self'; base-uri 'none'"
   },
-  "version_name": "5.0.0-dev",
+  "version_name": "5.0.0",
   "minimum_chrome_version": "116"
 }

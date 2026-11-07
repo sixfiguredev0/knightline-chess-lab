@@ -13,6 +13,7 @@ const fen = "8/pp6/2n3k1/2Bp3p/1P5K/5P2/P7/8 b - - 0 1";
     fs.mkdtempSync(path.join(os.tmpdir(), "knightline-reported-")),
     {
       headless: true,
+      channel: 'chromium',
       executablePath: process.env.CHROMIUM_PATH,
       args: [
         `--disable-extensions-except=${extensionRoot}`,

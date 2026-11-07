@@ -13,6 +13,7 @@ const root = path.resolve(__dirname, ".."),
     fs.mkdtempSync(path.join(os.tmpdir(), "knightline-special-")),
     {
       headless: true,
+      channel: 'chromium',
       executablePath: process.env.CHROMIUM_PATH,
       viewport: { width: 1500, height: 1100 },
       args: [

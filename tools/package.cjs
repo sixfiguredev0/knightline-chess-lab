@@ -19,6 +19,8 @@ const files = new Set([
   "LICENSE",
   "NOTICE",
   "README.md",
+  "CHANGELOG.md",
+  "docs/RELEASE_NOTES_5.0.0.md",
   "PRIVACY.md",
   "SECURITY.md",
   "docs/ACCEPTANCE.md",
@@ -62,7 +64,7 @@ if (fs.existsSync(output)) {
 fs.mkdirSync(output, { recursive: true });
 fs.writeFileSync(
   path.join(output, "INSTALL.md"),
-  `# Knightline · Chess Lab ${version}\n\nLocal development candidate. Release acceptance is pending; see docs/ACCEPTANCE.md. Nothing has been published.\n\nExtract this folder, open chrome://extensions or edge://extensions, enable Developer mode, and choose Load unpacked. Select this folder, refresh the chess tab, and enable Board analysis. Disable other Knightline copies while testing to avoid competing overlays. A new installation starts with autoplay and cloud fallback off.\n\nOpen Diagnostics in the popup and Copy JSON to inspect the actual pipeline. The report omits page URLs and account details.\n\nGPLv3 terms and attribution: LICENSE and NOTICE. Corresponding engine source and network: sources/. Privacy: PRIVACY.md.\n`,
+  `# Knightline · Chess Lab ${version}\n\nLocal-first chess analysis extension. Completed verification and outstanding compatibility checks are documented in docs/ACCEPTANCE.md.\n\nExtract this folder, open chrome://extensions or edge://extensions, enable Developer mode, and choose Load unpacked. Select this folder, refresh the chess tab, and enable Board analysis. Disable other Knightline copies while testing to avoid competing overlays. A new installation starts with autoplay and cloud fallback off.\n\nOpen Diagnostics in the popup and Copy JSON to inspect the actual pipeline. The report omits page URLs and account details.\n\nGPLv3 terms and attribution: LICENSE and NOTICE. Corresponding engine source and network: sources/. Privacy: PRIVACY.md.\n`,
 );
 for (const file of files) {
   const target = path.resolve(output, file);
@@ -78,7 +80,7 @@ fs.writeFileSync(
   JSON.stringify(
     {
       version,
-      releaseApproved: false,
+      verification: "docs/ACCEPTANCE.md",
       files: Object.fromEntries(
         [...files]
           .sort()

@@ -12,7 +12,7 @@
   const messages = [];
   globalThis.chrome = {
     storage: {local: {get: async fallback => ({...fallback, ...read()}), set: async patch => { const before = read(), next = {...before, ...patch}; localStorage.setItem('chess-lab-demo', JSON.stringify(next)); notify(before, next); }}, onChanged: {addListener: listener => listeners.push(listener)}},
-    runtime: {getManifest:()=>({version:'5.0.0',version_name:'5.0.0-dev'}),onMessage: {addListener: listener => messages.push(listener)}, sendMessage: async message => {
+    runtime: {getManifest:()=>({version:'5.0.0',version_name:'5.0.0'}),onMessage: {addListener: listener => messages.push(listener)}, sendMessage: async message => {
       if (message.type === 'GET_RUNTIME_STATUS') return {version: '5.0.0', status: {site: 'Offline demo', engine:'demo', mode: 'Analysis', result: 'Recorded sample · no network needed'}};
       if(message.type==='GET_ENGINE_STATUS')return {ok:true,capabilities:{UCI_Elo:{min:1320,max:3190}}};
       if(['GET_DIAGNOSTICS','REFRESH_BOARD','SET_MANUAL_FEN','SELECT_BOARD'].includes(message.type)){let result=null;const owner=window.parent!==window?window.parent:window;for(const listener of owner.demoMessages||[])listener(message,{},value=>{result=value;});return {ok:true,status:result};}

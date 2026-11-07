@@ -1,12 +1,12 @@
 <p align="center"><img src="docs/images/readme-banner.svg" alt="Knightline Chess Lab. Local analysis, a clearer next move." width="100%"></p>
-<p align="center"><strong>Manifest V3</strong> · <strong>Local Stockfish</strong> · <strong>5.0 development candidate</strong> · <a href="LICENSE">GPLv3</a></p>
-<p align="center"><a href="#try-the-candidate">Install</a> / <a href="#how-it-works">Features</a> / <a href="docs/ACCEPTANCE.md">Verification status</a> / <a href="docs/ARCHITECTURE.md">Architecture</a> / <a href="PRIVACY.md">Privacy</a></p>
+<p align="center"><strong>Manifest V3</strong> · <strong>Local Stockfish</strong> · <strong>Version 5.0.0</strong> · <a href="LICENSE">GPLv3</a></p>
+<p align="center"><a href="#install">Install</a> / <a href="#how-it-works">Features</a> / <a href="docs/ACCEPTANCE.md">Verification status</a> / <a href="docs/ARCHITECTURE.md">Architecture</a> / <a href="PRIVACY.md">Privacy</a></p>
 
 # Knightline · Chess Lab
 
 A self-contained chess extension for desktop Chrome and Edge. Knightline reads a Chess.com or Lichess board, analyses it with bundled Stockfish, checks each suggested move against the current position, and draws a clear path across the board. Built by [sixfiguredev0](https://github.com/sixfiguredev0) for a programming-class project.
 
-**5.0 is under verification.** This branch does not replace the published release. The reported 4.8.2 position now passes real offline analysis. The affected installation must still successfully repeat the live-board workflow before release. See the [acceptance ledger](docs/ACCEPTANCE.md) for the difference between controlled fixtures, public-site checks, and tests still pending.
+**5.0 brings local Stockfish, restored gameplay controls, and a refreshed interface.** The reported 4.8.2 position passes real offline analysis. Verification on the affected existing Chrome installation and complete signed-in game workflows remains outstanding. See the [acceptance ledger](docs/ACCEPTANCE.md) for the difference between controlled fixtures, public-site checks, and tests still pending.
 
 ![Classroom preview of the board, coach panel, and extension popup](docs/images/classroom-demo.png)
 
@@ -24,7 +24,7 @@ A self-contained chess extension for desktop Chrome and Edge. Knightline reads a
 
 ## Compatibility and verification
 
-Initial scope: standard chess on desktop Chromium browsers with Manifest V3 offscreen support, Chrome/Edge 116 or later. Browser engine automation has been run in fresh Chromium profiles; Edge and the affected existing Chrome installation remain explicit acceptance gates.
+Initial scope: standard chess on desktop Chromium browsers with Manifest V3 offscreen support, Chrome/Edge 116 or later. Browser engine automation has been run in fresh Chromium profiles; Edge and the affected existing Chrome installation remain unverified.
 
 | Context | Intended analysis / orange variations | Autoplay when explicitly enabled | Evidence so far |
 | --- | --- | --- | --- |
@@ -37,9 +37,9 @@ Initial scope: standard chess on desktop Chromium browsers with Manifest V3 offs
 
 This matrix describes intended capability and observed evidence, not blanket certification of every site page. A site modal, a covered square, incomplete history, or rejected synthetic input produces an explicit explanation. Knightline is independent of Chess.com and Lichess.
 
-## Try the candidate
+## Install
 
-1. Use the locally generated `release/Knightline-Chess-Lab-v5.0.0-dev.zip`, or load this branch's checkout. Existing public releases are earlier versions.
+1. Download [Knightline 5.0.0](https://github.com/sixfiguredev0/knightline-chess-lab/releases/tag/v5.0.0) and choose `Knightline-Chess-Lab-v5.0.0.zip`. SHA-256 checksums accompany the download. You can also load a source checkout.
 2. Extract the ZIP. Open `chrome://extensions` or `edge://extensions` and enable **Developer mode**.
 3. Choose **Load unpacked**, then select the directory containing `manifest.json`.
 4. Disable other Knightline copies while testing, refresh the chess tab, and enable **Board analysis** in the popup.

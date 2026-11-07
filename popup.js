@@ -217,7 +217,7 @@ chrome.runtime.onMessage.addListener((message) => {
     const status = await chrome.runtime.sendMessage({
       type: "GET_RUNTIME_STATUS",
     });
-    if (status?.version) $("version").textContent = `v${status.version} dev`;
+    if (status?.version) $("version").textContent = `v${status.version}`;
     showStatus(status?.status);
     await refreshDiagnostics();
     const engine = await chrome.runtime.sendMessage({

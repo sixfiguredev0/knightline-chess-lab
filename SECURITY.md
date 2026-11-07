@@ -1,6 +1,6 @@
 # Security
 
-The 5.0 candidate is local-first and remains unpublished until its release gates pass. Secret scanning and publication checks are scoped checks, not a guarantee that every possible disclosure or vulnerability has been detected.
+Version 5.0 is local-first. Completed checks and remaining compatibility verification are documented in docs/ACCEPTANCE.md. Secret scanning and publication checks are scoped checks, not a guarantee that every possible disclosure or vulnerability has been detected.
 
 ## Runtime boundaries
 

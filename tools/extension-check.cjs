@@ -14,6 +14,7 @@ fs.mkdirSync(path.join(root, "artifacts"), { recursive: true });
     fs.mkdtempSync(path.join(os.tmpdir(), "knightline-v5-")),
     {
       headless: true,
+      channel: 'chromium',
       executablePath: process.env.CHROMIUM_PATH,
       viewport: { width: 1500, height: 1000 },
       args: [

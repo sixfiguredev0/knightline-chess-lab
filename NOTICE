@@ -22,6 +22,6 @@ The supplied reference informed board guidance and scheduled practice behaviour.
 Its proprietary service, account implementation, and distribution identity are
 not included. The Lichess compatibility adapter is independently implemented.
 
-This is an unpublished development candidate. It changes the local engine,
+Version 5.0 changes the local engine,
 board selection/reconstruction, diagnostics, execution verification, settings,
 and interface relative to the earlier 4.8 series.

@@ -12,6 +12,7 @@ const root = path.resolve(__dirname, ".."),
     fs.mkdtempSync(path.join(os.tmpdir(), "knightline-local-")),
     {
       headless: true,
+      channel: 'chromium',
       executablePath: process.env.CHROMIUM_PATH,
       args: [
         `--disable-extensions-except=${extensionRoot}`,
