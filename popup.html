@@ -1,153 +1,24 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Chess Analysis Engine</title>
-  <link rel="stylesheet" href="popup.css">
-</head>
-<body>
-  <main class="app">
-    <header class="topbar">
-      <div class="brand-wrap">
-        <div class="logo">♞</div>
-        <div>
-          <div class="brand">Chess Analysis<span> Engine</span></div>
-          <div class="eyebrow">LIVE BOARD ANALYSIS</div>
-        </div>
-      </div>
-      <div id="statusDot" class="status-dot" aria-label="Extension status"></div>
-    </header>
-
-    <section class="status-card">
-      <div class="eyebrow">CURRENT MODE</div>
-      <div class="status-main" id="modeLabel">Waiting</div>
-      <div class="status-meta">
-        <span id="siteLabel">Detecting board…</span>
-        <span id="lastResult">Ready</span>
-      </div>
-    </section>
-
-    <section class="control-card compact">
-      <div class="row">
-        <div class="control-copy">
-          <div class="title">Live analysis</div>
-          <div class="hint">Reads the current board and shows the engine line.</div>
-        </div>
-        <label class="switch" aria-label="Enable live analysis">
-          <input id="enabled" type="checkbox">
-          <span></span>
-        </label>
-      </div>
-    </section>
-
-    <section class="control-card">
-      <div class="section-head">
-        <div>
-          <div class="title">Target playing strength</div>
-          <div class="hint">Approximate playing-strength profile.</div>
-        </div>
-        <div class="value-pill" id="eloValue">1800</div>
-      </div>
-      <input id="elo" class="range" type="range" min="800" max="2400" step="100" aria-label="Target playing strength">
-      <div class="scale"><span>800</span><span>1600</span><span>2400</span></div>
-    </section>
-
-    <section class="control-card">
-      <div class="row">
-        <div class="control-copy">
-          <div class="title">Move automation</div>
-          <div class="hint">Available only in supported non-rated study/analysis workflows.</div>
-        </div>
-        <label class="switch" aria-label="Enable move automation">
-          <input id="autoplay" type="checkbox">
-          <span></span>
-        </label>
-      </div>
-      <div class="subtle-note">Live rated-game move submission is disabled in this build.</div>
-    </section>
-
-    <section class="control-card">
-      <div class="section-head">
-        <div>
-          <div class="title">Thinking time before automation</div>
-          <div class="hint">Randomized delay in milliseconds before a queued move is sent.</div>
-        </div>
-        <div class="value-pill" id="minDelayValue">300–4000 ms</div>
-      </div>
-
-      <div class="section-head subcontrol">
-        <div><div class="title">Minimum thinking time</div></div>
-        <div class="value-pill" id="minDelayLabel">300 ms</div>
-      </div>
-      <input id="minDelay" class="range" type="range" min="100" max="10000" step="50" aria-label="Minimum thinking time in milliseconds">
-      <div class="scale"><span>100 ms</span><span>5 s</span><span>10 s</span></div>
-
-      <div class="section-head subcontrol">
-        <div><div class="title">Maximum thinking time</div></div>
-        <div class="value-pill" id="maxDelayLabel">4000 ms</div>
-      </div>
-      <input id="maxDelay" class="range" type="range" min="100" max="10000" step="50" aria-label="Maximum thinking time in milliseconds">
-      <div class="scale"><span>100 ms</span><span>5 s</span><span>10 s</span></div>
-    </section>
-
-    <section class="control-card">
-      <div class="row">
-        <div class="control-copy">
-          <div class="title">Imperfect-move simulation</div>
-          <div class="hint">Uses your move-selection policy on bot games and supported analysis/study positions.</div>
-        </div>
-        <label class="switch" aria-label="Enable imperfect move simulation">
-          <input id="imperfectMoves" type="checkbox">
-          <span></span>
-        </label>
-      </div>
-
-      <div class="subsection" id="weakControls">
-        <div class="section-head subcontrol">
-          <div><div class="title">Minimum moves between weak moves</div></div>
-          <div class="value-pill" id="minWeakValue">8</div>
-        </div>
-        <input id="minWeakInterval" class="range" type="range" min="1" max="50" step="1" aria-label="Minimum moves between weak moves">
-        <div class="scale"><span>1</span><span>25</span><span>50</span></div>
-
-        <div class="section-head subcontrol">
-          <div><div class="title">Maximum moves between weak moves</div></div>
-          <div class="value-pill" id="maxWeakValue">20</div>
-        </div>
-        <input id="maxWeakInterval" class="range" type="range" min="1" max="100" step="1" aria-label="Maximum moves between weak moves">
-        <div class="scale"><span>1</span><span>50</span><span>100</span></div>
-      </div>
-    </section>
-
-    <section class="control-card">
-      <div class="title">Presentation</div>
-      <div class="checks">
-        <label><input id="showArrow" type="checkbox"><span>Show best-move arrow</span></label>
-        <label><input id="showPanel" type="checkbox"><span>Show floating engine panel</span></label>
-      </div>
-    </section>
-
-    <section class="control-card">
-      <div class="section-head">
-        <div>
-          <div class="title">Turn detection</div>
-          <div class="hint">Automatic detection uses board state, move highlights, clocks and history.</div>
-        </div>
-      </div>
-      <select id="turnOverride" aria-label="Turn detection mode">
-        <option value="auto">Auto detect</option>
-        <option value="w">White to move</option>
-        <option value="b">Black to move</option>
-      </select>
-    </section>
-
-    <footer>
-      <span id="version">v4.7.0</span>
-      <span>Stockfish</span>
-    </footer>
-  </main>
-  <script src="appSettings.js"></script>
-  <script src="popup.js"></script>
-</body>
-</html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Knightline · Chess Lab</title><link rel="stylesheet" href="popup.css"></head>
+<body><main class="app">
+<header class="topbar"><div class="brand-wrap"><div class="logo" aria-hidden="true"><img src="icon.svg" alt=""></div><div><div class="brand">knightline<span> / lab</span></div><div class="eyebrow">BUILT BY YASEN</div></div></div><span class="version" id="version">v4.8.1</span></header>
+<section class="hero" aria-label="Connection status">
+<div class="hero-top"><span class="connection"><i id="statusDot" class="status-dot"></i><span id="siteLabel">Open a chess board</span></span><span class="engine-tag">STOCKFISH</span></div>
+<div class="hero-copy"><div class="eyebrow">YOUR NEXT MOVE, CLEARER.</div><h1 id="modeLabel">Ready when<br>you are.</h1><p id="lastResult" role="status">Connect a board to start exploring.</p></div>
+<div class="board-art" aria-hidden="true"><div class="art-grid"></div><span>♞</span><i></i></div>
+<div class="session-row"><div><strong>Board analysis</strong><span>One position. A better perspective.</span></div><label class="switch"><input id="enabled" type="checkbox" aria-label="Enable board analysis"><span></span></label></div>
+</section>
+<nav class="tabs" role="tablist" aria-label="Extension views"><button type="button" id="tab-analysis" class="tab active" aria-controls="view-analysis" aria-selected="true" role="tab">Overview</button><button type="button" id="tab-settings" class="tab" aria-controls="view-settings" aria-selected="false" role="tab" tabindex="-1">Settings <span>↗</span></button></nav>
+<div id="view-analysis" role="tabpanel" aria-labelledby="tab-analysis">
+<section class="control-card strength-card"><div class="section-head"><div><div class="eyebrow">ENGINE FOCUS</div><h2>How deep do we look?</h2></div><output class="value-pill" id="eloValue" for="elo">Depth 14</output></div><input id="elo" class="range" type="range" min="800" max="2400" step="100" aria-label="Analysis depth profile"><div class="scale"><span>Faster</span><span id="strengthLabel">Thoughtful</span><span>Deeper</span></div><p class="hint">Controls search depth, not a guaranteed player rating.</p></section>
+<section class="control-card presentation-card"><div class="section-head"><h2>Make it visible</h2><span class="section-icon" aria-hidden="true">◈</span></div><label class="option-row" for="showArrow"><span class="option-icon" aria-hidden="true">↗</span><span><strong>Move arrows</strong><small>A clear path from idea to square.</small></span><input id="showArrow" type="checkbox"></label><label class="option-row" for="showPanel"><span class="option-icon" aria-hidden="true">▤</span><span><strong>Coach panel</strong><small>The move, evaluation, and next line.</small></span><input id="showPanel" type="checkbox"></label></section>
+<div class="context-note"><span aria-hidden="true">◎</span><p>Built for learning.<br><span>Explore positions, study lines, and practice with bots.</span></p></div>
+</div>
+<div id="view-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+<section class="control-card"><div class="section-head"><div><div class="eyebrow">BOARD READING</div><h2>Whose move is it?</h2></div><span class="section-icon" aria-hidden="true">◐</span></div><select id="turnOverride" aria-label="Turn detection mode"><option value="auto">Detect automatically</option><option value="w">White to move</option><option value="b">Black to move</option></select><p class="hint">Use an override if the board does not expose its turn.</p></section>
+<section class="control-card"><div class="row"><div><h2>Practice autoplay</h2><p class="hint">For Chess.com bots and study / analysis.</p></div><label class="switch"><input id="autoplay" type="checkbox" aria-label="Enable practice autoplay"><span></span></label></div><div class="subsection" id="delayControls"><div class="section-head subcontrol"><label for="minDelay">Minimum delay</label><output id="minDelayLabel" for="minDelay">300 ms</output></div><input id="minDelay" class="range" type="range" min="100" max="10000" step="50"><div class="section-head subcontrol"><label for="maxDelay">Maximum delay</label><output id="maxDelayLabel" for="maxDelay">4000 ms</output></div><input id="maxDelay" class="range" type="range" min="100" max="10000" step="50"><div class="hint" id="minDelayValue">300–4000 ms</div></div><p class="subtle-note">Human-game move submission is disabled. Some boards reject simulated clicks.</p></section>
+<section class="control-card"><div class="row"><div><h2>Explore alternatives</h2><p class="hint">Occasionally select another engine candidate in practice.</p></div><label class="switch"><input id="imperfectMoves" type="checkbox" aria-label="Enable alternative move simulation"><span></span></label></div><div class="subsection" id="weakControls"><div class="section-head subcontrol"><label for="minWeakInterval">At least this many analyses</label><output id="minWeakValue" for="minWeakInterval">8</output></div><input id="minWeakInterval" class="range" type="range" min="1" max="50" step="1"><div class="section-head subcontrol"><label for="maxWeakInterval">At most this many analyses</label><output id="maxWeakValue" for="maxWeakInterval">20</output></div><input id="maxWeakInterval" class="range" type="range" min="1" max="100" step="1"></div></section>
+</div>
+<footer><span><i></i><span id="saveStatus" role="status">Settings saved locally</span></span><span>CHESS LAB.</span></footer>
+</main><script src="appSettings.js"></script><script src="popup.js"></script></body></html>

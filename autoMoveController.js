@@ -75,9 +75,14 @@ class AutoMoveController {
     this.setState('ANALYZING');
 
     try {
+      const schedule = {moveCount: this.moveCount, nextWeakAt: this.nextWeakAt};
+      const useImperfect = this.shouldUseImperfect(Boolean(options.allowImperfect));
+      const nextSchedule = {moveCount: this.moveCount, nextWeakAt: this.nextWeakAt};
+      Object.assign(this, schedule);
       const result = await this.engineController.analyze(
         boardFen,
-        Number(this.settings?.elo) || 1800
+        Number(this.settings?.elo) || 1800,
+        {depth: useImperfect ? 2 : undefined}
       );
 
       if (
@@ -92,16 +97,14 @@ class AutoMoveController {
         ? result.candidates
         : [result];
 
+      Object.assign(this, nextSchedule);
+
       this.bestMovePolicy.setCandidates(candidates);
       this.imperfectMovePolicy.setCandidates(candidates);
 
-      const useImperfect = this.shouldUseImperfect(
-        Boolean(options.allowImperfect)
-      );
-
-      this.moveSelectionPolicy = useImperfect
-        ? this.imperfectMovePolicy
-        : this.bestMovePolicy;
+      // A scheduled practice variation uses a shallow search, matching the
+      // reference mechanic. It is not necessarily an objectively bad move.
+      this.moveSelectionPolicy = this.bestMovePolicy;
 
       this.lastWasWeak = useImperfect;
       this.setState('SELECTING MOVE');
@@ -118,6 +121,7 @@ class AutoMoveController {
     } finally {
       if (request === this.analysisId) {
         this.busy = false;
+        this.setState('IDLE');
       }
     }
   }

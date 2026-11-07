@@ -1,0 +1,19 @@
+Knightline · Chess Lab
+Copyright (c) 2026 Yasen Katevski / sixfiguredev0
+
+New Knightline contributions in this distribution are licensed under the
+Hippocratic License 3.0, core configuration. The complete terms are in LICENSE.
+Retain this copyright and attribution notice when distributing the Software.
+Modified distributions must identify their changes as required by the licence.
+
+Earlier Chess Analysis Engine 4.7.0 code was published under the MIT License.
+That earlier grant remains valid. Its copyright and permission notice are
+preserved in docs/licenses/MIT-legacy.txt. This release does not retroactively
+revoke rights already granted under MIT.
+
+Third-party component:
+  chess.js — copyright Jeff Hlywa and contributors, BSD-2-Clause.
+  See lib/LICENSE-chess.js.
+
+The supplied reference extension informed visual and practice behaviour.
+Its proprietary service, accounts, and distribution identity are not included.

@@ -23,10 +23,10 @@ class BoardAdapter {
 
   analyzeBoard() {
     const position = this.updateBoard();
-    if (!position || !globalThis.ChessAnalysisApp?.autoMoveController) {
+    if (!position || !globalThis.ChessHelperApp?.autoMoveController) {
       return null;
     }
-    return globalThis.ChessAnalysisApp.autoMoveController.startAnalysis(
+    return globalThis.ChessHelperApp.autoMoveController.startAnalysis(
       position.fen,
       { allowImperfect: position.allowImperfect }
     );

@@ -12,7 +12,7 @@ class EngineController {
     this.candidates = Array.isArray(newCandidates) ? [...newCandidates] : [];
   }
 
-  async analyze(boardFen, elo = 1800) {
+  async analyze(boardFen, elo = 1800, options = {}) {
     if (!boardFen) {
       throw new Error('Cannot analyze an empty position.');
     }
@@ -22,7 +22,8 @@ class EngineController {
     const response = await chrome.runtime.sendMessage({
       type: 'ANALYZE_FEN',
       fen: boardFen,
-      elo
+      elo,
+      depth: options.depth
     });
 
     if (requestId !== this.requestId) {

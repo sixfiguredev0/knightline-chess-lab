@@ -1,82 +1,60 @@
+importScripts('appSettings.js', 'moveSelectionPolicy.js');
 const API_URL = 'https://chess-api.com/v1';
 const cache = new Map();
 const inFlight = new Map();
-
-function eloToDepth(elo) {
-  const rating = Math.max(800, Math.min(2400, Number(elo) || 1800));
-  if (rating <= 1000) return 8;
-  if (rating <= 1200) return 9;
-  if (rating <= 1400) return 10;
-  if (rating <= 1600) return 12;
-  if (rating <= 1800) return 14;
-  if (rating <= 2000) return 16;
-  return 18;
-}
-
-function keyFor(fen, elo) {
-  return `${elo}|${fen}`;
-}
-
-async function analyzeFen(fen, elo) {
-  const key = keyFor(fen, elo);
+function eloToDepth(elo) { return AppSettings.depthFor(elo); }
+async function analyzeFen(fen, elo, override) {
+  const depth = override === 2 ? 2 : eloToDepth(elo);
+  const key = `${depth}|${fen}`;
   const cached = cache.get(key);
   if (cached && Date.now() - cached.time < 120000) return cached.data;
-
   if (inFlight.has(key)) return inFlight.get(key);
-
-  const depth = eloToDepth(elo);
-  const maxThinkingTime = Math.min(100, Math.max(50, Math.round(50 + (depth - 8) * 6)));
-
   const promise = (async () => {
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({fen, depth, maxThinkingTime, variants: 5})
-    });
-
-    if (!response.ok) throw new Error(`Engine HTTP ${response.status}`);
-
-    let data = await response.json();
-    if (data?.type === 'error') throw new Error(data.text || data.error || 'Engine error');
-
-    if (Array.isArray(data) && data.length) {
-      data = data[0];
-    }
-    if (Array.isArray(data?.variants)) {
-      data.candidates = data.variants;
-    }
-    data.depth = data.depth || depth;
-    data.targetElo = elo;
-    cache.set(key, {time: Date.now(), data});
-
-    if (cache.size > 80) cache.delete(cache.keys().next().value);
-    return data;
+    const abort = new AbortController();
+    const timeout = setTimeout(() => abort.abort(), 15000);
+    try {
+      const response = await fetch(API_URL, {method: 'POST', credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer', headers: {'Content-Type': 'application/json'}, signal: abort.signal, body: JSON.stringify({fen, depth, maxThinkingTime: Math.min(100, Math.max(50, 50 + (depth - 8) * 6)), variants: 5})});
+      if (!response.ok) throw new Error(response.status === 429 ? 'Engine is busy. Try again shortly.' : `Engine returned HTTP ${response.status}.`);
+      const raw = await response.json();
+      if (raw?.type === 'error') throw new Error(raw.text || raw.error || 'Engine error.');
+      const rows = Array.isArray(raw) ? raw : Array.isArray(raw?.candidates) ? raw.candidates : Array.isArray(raw?.variants) ? raw.variants : [raw];
+      const candidates = rows.map(normalizeCandidate).filter(Boolean);
+      if (!candidates.length) {
+        const best = normalizeCandidate(raw);
+        if (best) candidates.push(best);
+      }
+      if (!candidates.length) throw new Error('No move returned. The position may be finished.');
+      const data = {...(!Array.isArray(raw) ? raw : {}), ...candidates[0], candidates, requestedDepth: depth, targetElo: elo};
+      cache.set(key, {time: Date.now(), data});
+      if (cache.size > 80) cache.delete(cache.keys().next().value);
+      return data;
+    } catch (error) {
+      if (error.name === 'AbortError') throw new Error('Engine timed out. Check your connection and retry.');
+      throw error;
+    } finally { clearTimeout(timeout); }
   })();
-
   inFlight.set(key, promise);
-  try {
-    return await promise;
-  } finally {
-    inFlight.delete(key);
-  }
+  try { return await promise; } finally { inFlight.delete(key); }
 }
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'GET_RUNTIME_STATUS') {
-    sendResponse({ok: true, version: chrome.runtime.getManifest().version});
-    return;
+    (async () => {
+      const [tab] = await chrome.tabs.query({active: true, currentWindow: true});
+      let status = null;
+      if (tab?.id != null) {
+        try { status = await chrome.tabs.sendMessage(tab.id, {type: 'GET_BOARD_STATUS'}); } catch {}
+      }
+      sendResponse({ok: true, version: chrome.runtime.getManifest().version, status});
+    })().catch(() => sendResponse({ok: true, version: chrome.runtime.getManifest().version}));
+    return true;
   }
-
   if (message?.type !== 'ANALYZE_FEN') return;
-
   (async () => {
     const fen = String(message.fen || '').trim();
-    if (!fen) throw new Error('Missing FEN');
-
-    const elo = Math.max(800, Math.min(2400, Number(message.elo) || 1800));
-    const data = await analyzeFen(fen, elo);
+    if (!/^[prnbqkPRNBQK1-8/]+ [wb] (?:-|K?Q?k?q?) (?:-|[a-h][36]) \d+ [1-9]\d*$/.test(fen)) throw new Error('Invalid board position.');
+    const elo = AppSettings.normalize({elo: message.elo}).elo;
+    const data = await analyzeFen(fen, elo, message.depth);
     sendResponse({ok: true, data});
-  })().catch(err => sendResponse({ok: false, error: err?.message || String(err)}));
-
+  })().catch(error => sendResponse({ok: false, error: error?.message || 'Engine request failed.'}));
   return true;
 });

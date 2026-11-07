@@ -30,7 +30,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 initApp();
 
-globalThis.ChessAnalysisApp = {
+globalThis.ChessHelperApp = {
   engineController,
   bestMovePolicy,
   imperfectMovePolicy,

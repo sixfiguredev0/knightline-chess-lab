@@ -1,145 +1,124 @@
-# Chess Analysis Engine
+<p align="center">
+  <img src="docs/images/readme-banner.svg" alt="Knightline Chess Lab. A clearer view of your next move." width="100%">
+</p>
 
-A Manifest V3 browser extension that reads a chess position from a live board in the
-DOM, evaluates it with an engine, and renders the result as a board overlay plus an
-analysis panel. Board readers exist for both **chess.com** and **lichess.org**.
+<p align="center">
+  <strong>Manifest V3</strong> &nbsp; · &nbsp; <strong>Chrome & Edge</strong> &nbsp; · &nbsp; <strong>Version 4.8.1</strong> &nbsp; · &nbsp; <a href="LICENSE">Hippocratic 3.0 Core</a>
+</p>
 
-Built as a layered, testable architecture rather than one large content script:
-detection → board modelling → engine → move-selection policy → presentation.
+<p align="center">
+  <a href="#get-started">Install</a> &nbsp; / &nbsp;
+  <a href="#see-it-in-action">Preview</a> &nbsp; / &nbsp;
+  <a href="#offline-demo">Offline demo</a> &nbsp; / &nbsp;
+  <a href="docs/ARCHITECTURE.md">Architecture</a> &nbsp; / &nbsp;
+  <a href="PRIVACY.md">Privacy</a>
+</p>
 
-Version 4.7.0.
+# Knightline · Chess Lab
 
----
+Knightline turns a chess board into a position you can explore. It reads the pieces on Chess.com or Lichess, asks a cloud Stockfish service for a suggestion, checks the returned move against the current position, and draws its path on the board.
 
-## Fair play and scope
+The interface stays out of the way: white dashed paths, cyan square highlights, a compact coach panel, and settings that live in your browser. Built by [sixfiguredev0](https://github.com/sixfiguredev0) as a programming-class project.
 
-**This is an analysis and training tool. It is not an engine-assistance tool for live play.**
+## See it in action
 
-The extension operates in exactly two kinds of context:
+![Offline demonstration showing the board, the coach panel, and the Knightline popup](docs/images/classroom-demo.png)
 
-- **chess.com "Play Computer" games** — unrated games against a bot (path `/play/computer`)
-- **Analysis and study boards** on chess.com and lichess.org (paths matching `/analysis` or `/study`)
+*The classroom preview uses a simulated engine. The installed extension uses the remote engine service.*
 
-Outside those, which includes **every live game against a human opponent**, the extension
-is completely inert. It does not read the board, does not call the engine, does not draw
-an overlay and does not execute moves.
+<table>
+  <tr>
+    <td width="50%" valign="top"><h3>A purposeful popup</h3><p>Adjust search depth, toggle the presentation, and set whose turn it is. Practice controls have their own tab.</p><img src="docs/images/popup-overview.png" alt="Knightline popup" width="320"></td>
+    <td width="50%" valign="top"><h3>A board companion</h3><p>Read the move in standard notation, inspect the evaluation from White's perspective, and follow the next line. Drag or collapse the panel.</p><img src="docs/images/coach-panel.png" alt="Knightline coach panel" width="304"></td>
+  </tr>
+</table>
 
-That restriction is not a setting, and it is not a promise in a README. It is enforced in
-one predicate, `isSupportedContext()` in `content.js`, and it is checked at the top of the
-scan loop before any board access happens. Anyone can verify it by reading the source:
+## What it does
 
-```js
-// content.js — checked before the board is ever read
-if (!isSupportedContext()) {
-  clearArrow();
-  removePanel();
-  ...
-  return;
-}
+- **Makes the suggestion visible.** A dashed path connects highlighted squares without blocking board input. Destination pulses and interface transitions respect reduced-motion preferences.
+- **Keeps the position in sync.** Stable-board detection and request identifiers discard responses for positions that have changed.
+- **Checks chess rules locally.** The bundled chess.js library validates moves and formats readable SAN continuations. Available FEN metadata and observed history preserve castling and en-passant state.
+- **Handles interruptions explicitly.** Loading, missing-board, finished-position, timeout, and retry states replace stale suggestions.
+- **Offers controlled practice.** On bots and study boards, optional autoplay uses an ordered delay range. Optional shallow-search practice variations appear in orange.
+
+## Where it runs
+
+| Context | Analysis, suggestions, and arrows | Practice autoplay | Shallow-search variations |
+| --- | :---: | :---: | :---: |
+| Live games | Yes, on the displayed player's turn | No | No |
+| Puzzles and training | Yes | No | No |
+| Chess.com Play Computer | Yes | Optional | Optional |
+| Analysis and study boards | Yes, for either side | Optional | Optional |
+
+Version 4.8.1 restores analysis beyond the study-only restriction in the previous public version. Automated submission remains limited to practice contexts. Use of assistance during human games may violate the host site's rules. Knightline is independent of Chess.com and Lichess and is not endorsed by either service.
+
+## Get started
+
+### Install the extension
+
+1. Download the ZIP from the repository's [Releases](https://github.com/sixfiguredev0/knightline-chess-lab/releases) page and extract it. You can also clone this repository.
+2. Open `chrome://extensions` or `edge://extensions` and enable **Developer mode**.
+3. Choose **Load unpacked**. Select the extracted extension folder, or the repository root. The selected folder must contain `manifest.json`.
+4. Open a supported chess board, open Knightline, and enable **Board analysis**.
+
+**Updating an existing installation:** reload the extension, then refresh your open chess tabs. Loading a different folder may create a separate extension instance with its own settings.
+
+No build step, account, API key, or subscription is required. Real engine analysis needs internet access. Firefox is not supported by this manifest.
+
+### Set the engine focus
+
+The depth slider maps the original internal `elo` setting to requested depths from 8 to 18. It is a search profile, not a calibrated player rating. The coach panel reports the depth actually returned by the provider, which may be lower than requested.
+
+If turn detection needs help, open **Settings → Whose move is it?** and choose a side. A manually imported midgame board without complete FEN metadata cannot reveal historical castling rights; Knightline omits unknown rights rather than inventing them.
+
+### Explore practice variations
+
+On supported practice pages, **Explore alternatives** periodically requests a depth-2 search and displays the result in orange. The interval counts completed analyses. Cancelled or failed requests do not advance it. A shallow search can still find the best move, so an orange move is not guaranteed to be a mistake.
+
+Some boards reject simulated clicks. Practice autoplay checks for a position change and reports rejection; promotion submission is left to the user. Actual bot submission has not been exhaustively verified.
+
+## Offline demo
+
+The full source checkout includes a playable classroom demonstration:
+
+```sh
+npm run demo
 ```
 
-The reasoning is worth stating plainly: showing a player the engine's best move during a
-rated game is cheating whether or not the software moves the piece for them. Automation is
-not the line — engine assistance is. So the tool is scoped to study, training and games
-against computer opponents.
+Open [127.0.0.1:4317/analysis](http://127.0.0.1:4317/analysis). Flip the board, trigger an orange practice move, test a connection error, or adjust the popup. The clearly labelled simulated engine needs no account or internet access. Demo browser APIs are separate from the extension and are excluded from release ZIPs.
 
-Not affiliated with, endorsed by, or connected to Chess.com or Lichess. Use is subject to
-those sites' terms of service.
+[Presentation walkthrough →](PRESENTATION.md)
 
----
+## Development
 
-## How it works
+Node.js 20 or later is recommended. The extension itself has no runtime npm dependencies.
 
-| File | Responsibility |
-| --- | --- |
-| `content.js` | Board detection, DOM → position model, scan loop, overlay rendering, move execution |
-| `app.js` | Composition root: wires the controllers and publishes the app services |
-| `appSettings.js` | Settings model, persisted in `chrome.storage.local` |
-| `engineController.js` | Engine request lifecycle, stale-response handling, candidate normalisation |
-| `moveSelectionPolicy.js` | Pluggable move-selection strategies |
-| `autoMoveController.js` | Analysis → selection → execution state machine |
-| `boardAdapter.js` | Adapter decoupling the controller from the platform DOM |
-| `background.js` | Service worker: engine backend calls, in-flight de-duplication, caching |
-| `popup.html` / `popup.js` / `popup.css` | Popup UI |
-| `content.css` | In-page overlay styling |
+```sh
+npm test                 # Unit and local-server security checks
+npm install              # Optional browser-test dependency
+npx playwright-core install chromium
+npm run test:browser     # Offline UI and interaction checks
+npm run test:extension   # Real Manifest V3 messaging, using fixtures
+npm run test:live        # Public analysis boards and the real provider
+npm run package          # Allowlisted, installable extension ZIP
+```
 
-### Design notes
+You can point `CHROMIUM_PATH` at a compatible installed Chromium executable. Browser tests start fresh profiles. Live checks need network access and do not log into accounts or play human games.
 
-**Layered, not monolithic.** The content script owns detection and presentation. It holds
-no move-selection logic. Policies are separate classes with a single `select()` method, and
-the controller talks to the platform through `boardAdapter` rather than to the DOM directly.
-Adding a new selection strategy means adding one class, not editing the scan loop.
+The suite covers legal moves, settings validation, scoring, cancellation, request caching, geometry, popup persistence, live and puzzle page support, practice execution, and browser messaging. See [architecture and testing](docs/ARCHITECTURE.md) for the module map and verification scope.
 
-**Board modelling.** `getBoard()` resolves the board element for either site (`wc-chess-board`
-on chess.com, `cg-board` on lichess) and derives orientation from ancestor classes and the
-board's flipped state. Piece classes are mapped to roles, and a FEN string is assembled with
-castling rights inferred from piece placement. Turn is inferred from the difference between
-successive piece maps, which is more reliable than parsing either site's move list.
+## Privacy and publication safety
 
-**Selection policies** are pluggable, and the class of strategy is the interesting part:
+The extension sends position FEN and search options to `https://chess-api.com/v1`. Settings stay in local extension storage. No cookies, usernames, page URLs, or account tokens are included in the request body. The provider still receives normal connection metadata, including the public IP address.
 
-- `BestMovePolicy` — the engine's top-ranked move.
-- `ImperfectMovePolicy` — picks randomly from the runner-up candidates on a randomised
-  schedule, to model weaker play.
-- `BoundedRegretPolicy` — picks only among alternatives whose evaluation is within a bounded
-  centipawn loss of the best move. This is decision theory applied to search: cap the regret,
-  randomise inside the cap. Useful for replaying a position at a chosen strength.
+The source and release use explicit publication/package allowlists. Backups, the inspiration extension, local reports, browser profiles, credentials, and environment files are excluded. The local demo serves only its named public assets on the loopback interface.
 
-**Stale-response safety.** Every engine request carries a monotonic id. A result whose
-position has since changed is discarded rather than acted on, so a slow engine response can
-never be applied to the wrong board.
+[Privacy details](PRIVACY.md) · [Security review and reporting](SECURITY.md)
 
-**Execution is verified, not assumed.** Before dispatching a move the board is re-read and
-the FEN compared; the move is dispatched only if the position is unchanged and it is still
-our turn. After the synthetic pointer sequence the board is read a third time — if the FEN
-has not changed, the move was rejected and the failure is surfaced instead of being reported
-as a success.
+## License and attribution
 
-**Timing under control.** Think time is a clamped, ordered, randomised window (`minDelay` →
-`maxDelay`), applied before execution rather than between raw events.
+New Knightline work is available under the [Hippocratic License 3.0 core terms](LICENSE), with copyright and attribution notices in [NOTICE](NOTICE). The licence requires notice retention and restricts specified human-rights abuses. It is an ethical-source licence and does not meet the OSI Open Source Definition. A licence is a legal condition, not a technical barrier against misuse.
 
-**Request de-duplication.** In-flight engine requests are keyed by `elo|fen` and shared, with
-a 120-second cache and an LRU bound of 80 entries, so repeated scans of an unchanged position
-do not produce repeated network calls.
+Earlier code published as Chess Analysis Engine 4.7.0 remains available under its original MIT grant. That grant is retained in [the legacy notice](docs/licenses/MIT-legacy.txt); it cannot be retroactively revoked. The bundled chess.js rules library remains BSD-2-Clause under [its own licence](lib/LICENSE-chess.js).
 
-## Engine backend
-
-Positions are POSTed to `https://chess-api.com/v1`, a free community engine endpoint that
-needs no key. Target rating is mapped to search depth (800–2400 → depth 8–18), and
-`variants: 5` is requested so the policy layer has multiple candidate lines to choose from.
-Pointing this at a different backend means changing one function in `background.js`.
-
-## Configuration
-
-| Setting | Default | Purpose |
-| --- | --- | --- |
-| `enabled` | `false` | Master switch |
-| `elo` | `1800` | Target rating; drives engine depth |
-| `autoplay` | `false` | Execute the selected move, not just display it |
-| `showArrow` / `showPanel` | `true` | Overlay presentation |
-| `minDelay` / `maxDelay` | 300 / 4000 ms | Randomised think-time window |
-| `imperfectMoves` | `false` | Enable weak-move simulation |
-| `minWeakInterval` / `maxWeakInterval` | 8 / 20 | Moves between simulated weak moves |
-
-## Install
-
-1. Open `chrome://extensions` and enable **Developer mode**.
-2. Choose **Load unpacked** and select this directory.
-3. Open a supported board (chess.com `/play/computer` or an `/analysis` board) and enable the
-   extension from its popup.
-
-Requires a Chromium-based browser with Manifest V3. Firefox would need a manifest shim.
-
-## Limitations
-
-- Board reading is DOM scraping, so it is coupled to those sites' markup. A front-end redesign
-  on either site can break detection, and selectors will need updating.
-- Turn inference and castling-right derivation are heuristics; unusual positions are worth
-  double-checking against the site's own FEN.
-- The engine backend is a third-party free service, so latency and rate limits are outside this
-  project's control.
-- No automated test suite yet. The layered structure exists partly to make one cheap to add.
-
-## Licence
-
-MIT — see [LICENSE](LICENSE).
+The supplied reference informed the dashed overlay and orange practice-move behaviour. Its proprietary account system, backend, extension identity, and update mechanism are not included. Knightline uses the [Chess-API service](https://chess-api.com/) for remote search and [chess.js](https://github.com/jhlywa/chess.js) for local rules.
