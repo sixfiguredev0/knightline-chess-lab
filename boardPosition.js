@@ -18,6 +18,14 @@ class BoardPosition {
     if (typeof fen !== 'string' || !game.load(fen)) return null;
     const pieces = game.board().flat().filter(Boolean);
     if (pieces.filter(p => p.type === 'k' && p.color === 'w').length !== 1 || pieces.filter(p => p.type === 'k' && p.color === 'b').length !== 1) return null;
+    // chess.js's legacy FEN exporter records every double-pawn push. The
+    // provider accepts an en-passant target only when a legal capture exists.
+    // Keep real captures (including king safety), omit non-capturable targets.
+    const fields = game.fen().split(' ');
+    if (fields[3] !== '-' && !game.moves({verbose: true}).some(move => move.flags.includes('e'))) {
+      fields[3] = '-';
+      game.load(fields.join(' '));
+    }
     return game;
   }
   resolve(pieces, hint = {}) {
@@ -43,7 +51,7 @@ class BoardPosition {
             const fields = next.fen().split(' '); fields[1] = hint.override; fields[3] = '-';
             return BoardPosition.create(fields.join(' '));
           }
-          return next;
+          return BoardPosition.create(next.fen());
         }
       }
     }

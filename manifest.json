@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Knightline · Chess Lab",
-  "version": "4.8.1",
+  "version": "4.8.2",
   "description": "Chess board analysis and animated suggestions for live games, puzzles, bots, and study boards.",
   "permissions": [
     "storage"

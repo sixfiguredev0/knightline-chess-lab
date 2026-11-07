@@ -13,7 +13,7 @@
   globalThis.chrome = {
     storage: {local: {get: async fallback => ({...fallback, ...read()}), set: async patch => { const before = read(), next = {...before, ...patch}; localStorage.setItem('chess-lab-demo', JSON.stringify(next)); notify(before, next); }}, onChanged: {addListener: listener => listeners.push(listener)}},
     runtime: {onMessage: {addListener: listener => messages.push(listener)}, sendMessage: async message => {
-      if (message.type === 'GET_RUNTIME_STATUS') return {version: '4.8.1', status: {site: 'Offline demo', mode: 'Analysis', result: 'Recorded sample · no network needed'}};
+      if (message.type === 'GET_RUNTIME_STATUS') return {version: '4.8.2', status: {site: 'Offline demo', mode: 'Analysis', result: 'Recorded sample · no network needed'}};
       if (message.type !== 'ANALYZE_FEN') return {ok: true};
       if (globalThis.demoFail) return {ok: false, error: 'Demo connection error. Press Try analysis again.'};
       await new Promise(resolve => setTimeout(resolve, globalThis.demoDelay ?? 420));

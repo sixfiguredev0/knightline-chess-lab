@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Manifest V3</strong> &nbsp; · &nbsp; <strong>Chrome & Edge</strong> &nbsp; · &nbsp; <strong>Version 4.8.1</strong> &nbsp; · &nbsp; <a href="LICENSE">Hippocratic 3.0 Core</a>
+  <strong>Manifest V3</strong> &nbsp; · &nbsp; <strong>Chrome & Edge</strong> &nbsp; · &nbsp; <strong>Version 4.8.2</strong> &nbsp; · &nbsp; <a href="LICENSE">Hippocratic 3.0 Core</a>
 </p>
 
 <p align="center">
@@ -50,7 +50,7 @@ The interface stays out of the way: white dashed paths, cyan square highlights, 
 | Chess.com Play Computer | Yes | Optional | Optional |
 | Analysis and study boards | Yes, for either side | Optional | Optional |
 
-Version 4.8.1 restores analysis beyond the study-only restriction in the previous public version. Automated submission remains limited to practice contexts. Use of assistance during human games may violate the host site's rules. Knightline is independent of Chess.com and Lichess and is not endorsed by either service.
+The 4.8 series restores analysis beyond the study-only restriction in the original public version. Version 4.8.2 fixes an engine-compatibility regression after ordinary double-pawn pushes such as `1. e4`: a non-capturable en-passant target is omitted from exported FEN, while genuine legal en-passant captures are preserved. Automated submission remains limited to practice contexts. Use of assistance during human games may violate the host site's rules. Knightline is independent of Chess.com and Lichess and is not endorsed by either service.
 
 ## Get started
 

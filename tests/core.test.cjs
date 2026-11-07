@@ -42,13 +42,25 @@ test('bounded regret respects Black perspective', () => {
   const policy = new BoundedRegretPolicy([{move: 'e7e5', eval: -2, turn: 'b'}, {move: 'c7c5', eval: -1.8, turn: 'b'}, {move: 'g8f6', eval: 4, turn: 'b'}], {maxCentipawnLoss: 30});
   assert.equal(policy.select().from, 'c7');
 });
-test('position history preserves castling rights and double-pawn en passant', () => {
+test('position history preserves castling rights and exports capturable en passant only', () => {
   const {Chess, BoardPosition} = load(files); const tracker = new BoardPosition(), game = new Chess();
   tracker.commit(tracker.resolve(pieces(game), {turn: 'w'}));
   assert.equal(tracker.game.fen().split(' ')[2], 'KQkq');
   game.move('e4'); const next = tracker.resolve(pieces(game), {});
-  assert.equal(next.turn(), 'b'); assert.equal(next.fen().split(' ')[3], 'e3');
-  tracker.commit(next); game.move('e5'); assert.equal(tracker.resolve(pieces(game), {}).fen(), game.fen());
+  assert.equal(next.turn(), 'b'); assert.equal(next.fen().split(' ')[3], '-');
+  tracker.commit(next); game.move('e5'); assert.equal(tracker.resolve(pieces(game), {}).fen(), BoardPosition.create(game.fen()).fen());
+});
+test('the screenshot opening after e4 is normalized without losing castling or turn', () => {
+  const {BoardPosition} = load(files);
+  assert.equal(BoardPosition.create('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1').fen(), 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1');
+});
+test('genuine en passant remains available while pinned en passant is omitted', () => {
+  const {BoardPosition} = load(files);
+  const legal = BoardPosition.create('4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1');
+  assert.equal(legal.fen().split(' ')[3], 'd6');
+  assert.equal(legal.move({from:'e5',to:'d6'}).san,'exd6');
+  const pinned = BoardPosition.create('k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1');
+  assert.equal(pinned.fen().split(' ')[3], '-');
 });
 test('unknown midgame placement does not invent castling rights', () => {
   const {Chess, BoardPosition} = load(files); const game = new Chess(); game.move('e4');

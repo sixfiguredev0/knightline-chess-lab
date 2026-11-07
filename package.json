@@ -1,6 +1,6 @@
 {
   "name": "knightline-chess-lab",
-  "version": "4.8.1",
+  "version": "4.8.2",
   "private": true,
   "description": "Personal chess study extension and programming-class demo",
   "scripts": {

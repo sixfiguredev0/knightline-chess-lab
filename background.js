@@ -1,9 +1,12 @@
-importScripts('appSettings.js', 'moveSelectionPolicy.js');
+importScripts('lib/chess.js', 'appSettings.js', 'moveSelectionPolicy.js', 'boardPosition.js');
 const API_URL = 'https://chess-api.com/v1';
 const cache = new Map();
 const inFlight = new Map();
 function eloToDepth(elo) { return AppSettings.depthFor(elo); }
 async function analyzeFen(fen, elo, override) {
+  const position = BoardPosition.create(fen);
+  if (!position) throw new Error('Invalid board position.');
+  fen = position.fen();
   const depth = override === 2 ? 2 : eloToDepth(elo);
   const key = `${depth}|${fen}`;
   const cached = cache.get(key);

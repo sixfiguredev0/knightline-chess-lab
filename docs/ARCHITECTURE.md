@@ -45,12 +45,14 @@ The internal legacy `elo` setting maps to requested depths 8–18. The returned 
 
 The reference-inspired practice scheduler requests depth 2 at a randomly selected interval. The shallow result can match the stronger engine's move. The UI describes a practice variation rather than asserting that it is incorrect.
 
+FEN export is normalized for the provider: an en-passant target is retained only if a legal en-passant capture exists. The legacy rules library otherwise emits a target after every double-pawn push, and the provider rejects examples such as the uncapturable `e3` target after `1. e4`. Normalization happens in the position model and again at the service-worker request boundary. Legal capture availability includes king safety, so pinned en-passant captures are also excluded.
+
 ## Verification layers
 
 - Node tests cover module initialization, settings, candidate normalization, legal moves, history, special moves, cancellation, caching, request privacy, and the local server's asset boundaries.
 - Offline browser tests exercise the actual popup and presentation code with a clearly identified simulated engine and playable board.
 - Extension tests load Manifest V3 in a fresh Chromium profile and exercise its actual service worker, extension origin, storage events, and messaging. The board and engine are fixtures.
-- Live smoke tests inspect the public analysis boards on both supported sites and call the real engine with sample positions. They are integration samples rather than exhaustive site compatibility tests.
+- Live smoke tests inspect the public analysis boards on both supported sites and a public Lichess live spectator board. They also send the opening regression through the real engine. They are integration samples rather than exhaustive site compatibility tests.
 - Gitleaks scans the publication tree and all locally fetched Git history. A separate publication check rejects personal filesystem paths, secret files, and unexpected tracked artifacts.
 
 No test establishes that every future site layout will work. Live bot submission, every promotion dialog, and every imported position are outside the completed verification scope.

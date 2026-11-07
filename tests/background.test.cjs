@@ -2,7 +2,7 @@ const test = require('node:test'), assert = require('node:assert/strict'), fs = 
 const root = path.resolve(__dirname,'..');
 function background(fetch) {
   let handler;
-  const context = vm.createContext({console,setTimeout,clearTimeout,AbortController,fetch,chrome:{runtime:{onMessage:{addListener(fn){handler=fn;}},getManifest:()=>({version:'4.8.1'})},tabs:{query:async()=>[{id:42}],sendMessage:async()=>({site:'Chess.com',mode:'Analysis',result:'e4'})}}});
+  const context = vm.createContext({console,setTimeout,clearTimeout,AbortController,fetch,chrome:{runtime:{onMessage:{addListener(fn){handler=fn;}},getManifest:()=>({version:'4.8.2'})},tabs:{query:async()=>[{id:42}],sendMessage:async()=>({site:'Chess.com',mode:'Analysis',result:'e4'})}}});
   context.importScripts = (...files) => files.forEach(file => vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),context,{filename:file}));
   vm.runInContext(fs.readFileSync(path.join(root,'background.js'),'utf8'),context,{filename:'background.js'});
   return {analyze:(fen,elo,depth)=>vm.runInContext(`analyzeFen(${JSON.stringify(fen)},${elo},${depth})`,context),message:message=>new Promise(resolve=>handler(message,{},resolve))};
@@ -31,6 +31,12 @@ test('engine requests exclude cookies and referrers and reject redirects',async(
   assert.equal(request.options.redirect,'error');
   assert.deepEqual(Object.keys(JSON.parse(request.options.body)).sort(),['depth','fen','maxThinkingTime','variants']);
 });
+test('network boundary normalizes the live-game e4 position before POSTing', async()=>{
+  let sent;
+  const bg=background(async(url,options)=>{sent=JSON.parse(options.body);return {ok:true,json:async()=>({move:'e7e5'})};});
+  await bg.analyze('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1',1800);
+  assert.equal(sent.fen,'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1');
+});
 test('failed requests are released and can be retried',async()=>{
   let calls=0;const bg=background(async()=>{calls++;if(calls===1)throw new Error('offline');return {ok:true,json:async()=>({move:'g1f3'})};});
   await assert.rejects(bg.analyze(fen,1800),/offline/);assert.equal((await bg.analyze(fen,1800)).from,'g1');
@@ -42,7 +48,7 @@ test('invalid engine output and rate limits become useful errors',async()=>{
 });
 test('runtime status queries the active content tab and includes version',async()=>{
   const bg=background(async()=>{}), result=await bg.message({type:'GET_RUNTIME_STATUS'});
-  assert.equal(result.version,'4.8.1');assert.equal(result.status.site,'Chess.com');assert.equal(result.status.mode,'Analysis');
+  assert.equal(result.version,'4.8.2');assert.equal(result.status.site,'Chess.com');assert.equal(result.status.mode,'Analysis');
 });
 test('invalid incoming FEN is rejected before any network call',async()=>{
   let calls=0;const bg=background(async()=>{calls++;});const result=await bg.message({type:'ANALYZE_FEN',fen:'no board'});

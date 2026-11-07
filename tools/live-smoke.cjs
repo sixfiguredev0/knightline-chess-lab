@@ -11,13 +11,21 @@ fs.mkdirSync(path.join(root,'artifacts'),{recursive:true});
   console.log('Provider:',JSON.stringify(report.provider));
   report.shallowProvider = await worker.evaluate(async () => {try {const data=await analyzeFen('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1',1800,2);return {ok:true,move:data.move,depth:data.depth,requestedDepth:data.requestedDepth};}catch(error){return {ok:false,error:error.message};}});
   console.log('Shallow provider:',JSON.stringify(report.shallowProvider));
+  report.openingRegression = await worker.evaluate(async () => {try {const data=await analyzeFen('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1',1800);return {ok:true,move:data.move,depth:data.depth};}catch(error){return {ok:false,error:error.message};}});
+  console.log('Real-provider e4 regression:',JSON.stringify(report.openingRegression));
+  if (!report.openingRegression.ok) throw new Error('The real provider still rejects the opening regression.');
   await worker.evaluate(()=>chrome.storage.local.set({enabled:true,showPanel:true,showArrow:true,autoplay:false,imperfectMoves:false}));
-  for(const url of ['https://lichess.org/analysis','https://www.chess.com/analysis']) {
+  for(const url of ['https://lichess.org/analysis','https://www.chess.com/analysis','https://lichess.org/tv']) {
    const page=await context.newPage();
    try {
     await page.goto(url,{waitUntil:'domcontentloaded',timeout:25000});
     await page.waitForSelector('cg-board piece, wc-chess-board .piece, chess-board .piece',{timeout:18000});
     await page.waitForTimeout(3500);
+    if (url.endsWith('/tv')) {
+      const waiting = await page.locator('#chp-eval').textContent();
+      if (waiting?.includes('Waiting for your turn')) await page.keyboard.press('f');
+      await page.locator('#chesshelper-live-panel[data-stage="ready"]').waitFor({timeout:20000});
+    }
     const result=await page.evaluate(()=>({url:location.href,board:document.querySelector('cg-board,wc-chess-board,chess-board')?.outerHTML.slice(0,250),pieceCount:document.querySelectorAll('cg-board piece,wc-chess-board .piece,chess-board .piece').length,panel:document.getElementById('chesshelper-live-panel')?.dataset.stage,move:document.getElementById('chp-move')?.textContent,detail:document.getElementById('chp-eval')?.textContent,fenInputs:[...document.querySelectorAll('input')].filter(el=>el.value?.split('/').length===8).map(el=>({class:el.className,name:el.name,value:el.value})),activeMoves:[...document.querySelectorAll('move.active,.node.active,[data-ply].active')].map(el=>({tag:el.tagName,attrs:[...el.attributes].map(a=>[a.name,a.value])}))}));
     report.sites.push(result);console.log('Site:',JSON.stringify(result));
     await page.screenshot({path:path.join(root,'artifacts',url.includes('lichess')?'lichess-live.png':'chesscom-live.png'),fullPage:false});
