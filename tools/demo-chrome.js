@@ -12,10 +12,12 @@
   const messages = [];
   globalThis.chrome = {
     storage: {local: {get: async fallback => ({...fallback, ...read()}), set: async patch => { const before = read(), next = {...before, ...patch}; localStorage.setItem('chess-lab-demo', JSON.stringify(next)); notify(before, next); }}, onChanged: {addListener: listener => listeners.push(listener)}},
-    runtime: {onMessage: {addListener: listener => messages.push(listener)}, sendMessage: async message => {
-      if (message.type === 'GET_RUNTIME_STATUS') return {version: '4.8.2', status: {site: 'Offline demo', mode: 'Analysis', result: 'Recorded sample · no network needed'}};
+    runtime: {getManifest:()=>({version:'5.0.0',version_name:'5.0.0-dev'}),onMessage: {addListener: listener => messages.push(listener)}, sendMessage: async message => {
+      if (message.type === 'GET_RUNTIME_STATUS') return {version: '5.0.0', status: {site: 'Offline demo', engine:'demo', mode: 'Analysis', result: 'Recorded sample · no network needed'}};
+      if(message.type==='GET_ENGINE_STATUS')return {ok:true,capabilities:{UCI_Elo:{min:1320,max:3190}}};
+      if(['GET_DIAGNOSTICS','REFRESH_BOARD','SET_MANUAL_FEN','SELECT_BOARD'].includes(message.type)){let result=null;const owner=window.parent!==window?window.parent:window;for(const listener of owner.demoMessages||[])listener(message,{},value=>{result=value;});return {ok:true,status:result};}
       if (message.type !== 'ANALYZE_FEN') return {ok: true};
-      if (globalThis.demoFail) return {ok: false, error: 'Demo connection error. Press Try analysis again.'};
+      if (globalThis.demoFail) return {ok: false, error:{kind:'engine',message:'Simulated engine failure. Choose Analyze again.'}};
       await new Promise(resolve => setTimeout(resolve, globalThis.demoDelay ?? 420));
       const game = new Chess(message.fen), legal = game.moves({verbose: true});
       const find = san => legal.find(move => move.san === san);
@@ -29,8 +31,10 @@
         const move = next.find(move => ['exd4', 'cxd4', 'Re8', 'Nc3', 'Bb7'].includes(move.san)) || next[0];
         if (!move) break; variation.move(move); line.push(move.from + move.to + (move.promotion || ''));
       }
-      return {ok: true, data: {...best, continuationArr: line, candidates: [best, ...legal.filter(move => move.san !== selected.san).slice(0, 2).map(move => candidate(move, .18))]}};
+      return {ok: true, data: {...best, id:message.id, positionKey:message.positionKey,source:'demo',complete:true,continuationArr: line, candidates: [best, ...legal.filter(move => move.san !== selected.san).slice(0, 2).map(move => candidate(move, .18))]}};
     }}
   };
   globalThis.demoMessages = messages;
 })();
+
+

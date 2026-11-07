@@ -13,5 +13,26 @@ jobs:
         with:
           node-version: 22
       - run: npm test
+      - run: npm run verify:vendor
       - run: node tools/publication-check.cjs
       - run: npm run package
+  browser-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts
+      - run: npx playwright-core install --with-deps chromium
+      - run: npm run test:execution
+      - run: npm run test:browser
+      - run: npm run test:engine
+      - run: npm run test:extension
+      - run: npm run package
+      - run: npm run test:engine
+        env:
+          KNIGHTLINE_EXTENSION_DIR: release/knightline-v5.0.0-dev
+      - run: npm run test:extension
+        env:
+          KNIGHTLINE_EXTENSION_DIR: release/knightline-v5.0.0-dev

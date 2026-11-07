@@ -1,24 +1,442 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Knightline · Chess Lab</title><link rel="stylesheet" href="popup.css"></head>
-<body><main class="app">
-<header class="topbar"><div class="brand-wrap"><div class="logo" aria-hidden="true"><img src="icon.svg" alt=""></div><div><div class="brand">knightline<span> / lab</span></div><div class="eyebrow">BUILT BY YASEN</div></div></div><span class="version" id="version">v4.8.2</span></header>
-<section class="hero" aria-label="Connection status">
-<div class="hero-top"><span class="connection"><i id="statusDot" class="status-dot"></i><span id="siteLabel">Open a chess board</span></span><span class="engine-tag">STOCKFISH</span></div>
-<div class="hero-copy"><div class="eyebrow">YOUR NEXT MOVE, CLEARER.</div><h1 id="modeLabel">Ready when<br>you are.</h1><p id="lastResult" role="status">Connect a board to start exploring.</p></div>
-<div class="board-art" aria-hidden="true"><div class="art-grid"></div><span>♞</span><i></i></div>
-<div class="session-row"><div><strong>Board analysis</strong><span>One position. A better perspective.</span></div><label class="switch"><input id="enabled" type="checkbox" aria-label="Enable board analysis"><span></span></label></div>
-</section>
-<nav class="tabs" role="tablist" aria-label="Extension views"><button type="button" id="tab-analysis" class="tab active" aria-controls="view-analysis" aria-selected="true" role="tab">Overview</button><button type="button" id="tab-settings" class="tab" aria-controls="view-settings" aria-selected="false" role="tab" tabindex="-1">Settings <span>↗</span></button></nav>
-<div id="view-analysis" role="tabpanel" aria-labelledby="tab-analysis">
-<section class="control-card strength-card"><div class="section-head"><div><div class="eyebrow">ENGINE FOCUS</div><h2>How deep do we look?</h2></div><output class="value-pill" id="eloValue" for="elo">Depth 14</output></div><input id="elo" class="range" type="range" min="800" max="2400" step="100" aria-label="Analysis depth profile"><div class="scale"><span>Faster</span><span id="strengthLabel">Thoughtful</span><span>Deeper</span></div><p class="hint">Controls search depth, not a guaranteed player rating.</p></section>
-<section class="control-card presentation-card"><div class="section-head"><h2>Make it visible</h2><span class="section-icon" aria-hidden="true">◈</span></div><label class="option-row" for="showArrow"><span class="option-icon" aria-hidden="true">↗</span><span><strong>Move arrows</strong><small>A clear path from idea to square.</small></span><input id="showArrow" type="checkbox"></label><label class="option-row" for="showPanel"><span class="option-icon" aria-hidden="true">▤</span><span><strong>Coach panel</strong><small>The move, evaluation, and next line.</small></span><input id="showPanel" type="checkbox"></label></section>
-<div class="context-note"><span aria-hidden="true">◎</span><p>Built for learning.<br><span>Explore positions, study lines, and practice with bots.</span></p></div>
-</div>
-<div id="view-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
-<section class="control-card"><div class="section-head"><div><div class="eyebrow">BOARD READING</div><h2>Whose move is it?</h2></div><span class="section-icon" aria-hidden="true">◐</span></div><select id="turnOverride" aria-label="Turn detection mode"><option value="auto">Detect automatically</option><option value="w">White to move</option><option value="b">Black to move</option></select><p class="hint">Use an override if the board does not expose its turn.</p></section>
-<section class="control-card"><div class="row"><div><h2>Practice autoplay</h2><p class="hint">For Chess.com bots and study / analysis.</p></div><label class="switch"><input id="autoplay" type="checkbox" aria-label="Enable practice autoplay"><span></span></label></div><div class="subsection" id="delayControls"><div class="section-head subcontrol"><label for="minDelay">Minimum delay</label><output id="minDelayLabel" for="minDelay">300 ms</output></div><input id="minDelay" class="range" type="range" min="100" max="10000" step="50"><div class="section-head subcontrol"><label for="maxDelay">Maximum delay</label><output id="maxDelayLabel" for="maxDelay">4000 ms</output></div><input id="maxDelay" class="range" type="range" min="100" max="10000" step="50"><div class="hint" id="minDelayValue">300–4000 ms</div></div><p class="subtle-note">Human-game move submission is disabled. Some boards reject simulated clicks.</p></section>
-<section class="control-card"><div class="row"><div><h2>Explore alternatives</h2><p class="hint">Occasionally select another engine candidate in practice.</p></div><label class="switch"><input id="imperfectMoves" type="checkbox" aria-label="Enable alternative move simulation"><span></span></label></div><div class="subsection" id="weakControls"><div class="section-head subcontrol"><label for="minWeakInterval">At least this many analyses</label><output id="minWeakValue" for="minWeakInterval">8</output></div><input id="minWeakInterval" class="range" type="range" min="1" max="50" step="1"><div class="section-head subcontrol"><label for="maxWeakInterval">At most this many analyses</label><output id="maxWeakValue" for="maxWeakInterval">20</output></div><input id="maxWeakInterval" class="range" type="range" min="1" max="100" step="1"></div></section>
-</div>
-<footer><span><i></i><span id="saveStatus" role="status">Settings saved locally</span></span><span>CHESS LAB.</span></footer>
-</main><script src="appSettings.js"></script><script src="popup.js"></script></body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Knightline · Chess Lab</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div class="brand-wrap">
+          <div class="logo" aria-hidden="true">
+            <img src="icon.svg" alt="" />
+          </div>
+          <div>
+            <div class="brand">knightline<span> / lab</span></div>
+            <div class="eyebrow">LOCAL FIRST. YOUR MOVE.</div>
+          </div>
+        </div>
+        <span class="version" id="version">5.0 dev</span>
+      </header>
+      <section class="hero" aria-label="Board status">
+        <div class="hero-top">
+          <span class="connection"
+            ><i id="statusDot" class="status-dot"></i
+            ><span id="siteLabel">Open a chess board</span></span
+          ><span class="engine-tag" id="engineLabel">ON DEVICE</span>
+        </div>
+        <div class="hero-copy">
+          <div class="eyebrow">A LITTLE MORE FORESIGHT.</div>
+          <h1 id="modeLabel">Ready when<br />you are.</h1>
+          <p id="lastResult" role="status">
+            Local analysis. No account required.
+          </p>
+        </div>
+        <div class="board-art" aria-hidden="true">
+          <div class="art-grid"></div>
+          <span>♞</span><i></i>
+        </div>
+        <div class="session-row">
+          <div>
+            <strong>Board analysis</strong
+            ><span id="engineDescription"
+              >Stockfish 19 · running on your device.</span
+            >
+          </div>
+          <label class="switch"
+            ><input
+              id="enabled"
+              type="checkbox"
+              aria-label="Enable board analysis" /><span></span
+          ></label>
+        </div>
+      </section>
+      <nav class="tabs" role="tablist" aria-label="Extension views">
+        <button
+          type="button"
+          id="tab-analysis"
+          class="tab active"
+          aria-controls="view-analysis"
+          aria-selected="true"
+          role="tab"
+        >
+          Overview</button
+        ><button
+          type="button"
+          id="tab-settings"
+          class="tab"
+          aria-controls="view-settings"
+          aria-selected="false"
+          role="tab"
+          tabindex="-1"
+        >
+          Controls</button
+        ><button
+          type="button"
+          id="tab-diagnostics"
+          class="tab"
+          aria-controls="view-diagnostics"
+          aria-selected="false"
+          role="tab"
+          tabindex="-1"
+        >
+          Diagnostics
+        </button>
+      </nav>
+      <div id="view-analysis" role="tabpanel" aria-labelledby="tab-analysis">
+        <section class="control-card">
+          <div class="section-head">
+            <div>
+              <div class="eyebrow">CONNECTED BOARD</div>
+              <h2>Choose your focus</h2>
+            </div>
+            <button
+              class="quiet-button"
+              id="refreshBoard"
+              type="button"
+              aria-label="Refresh board detection"
+            >
+              ↻
+            </button>
+          </div>
+          <select id="selectedBoardId" aria-label="Selected chess board">
+            <option value="auto">Automatic · main board</option>
+          </select>
+          <p class="hint" id="boardSummary">
+            Board details appear when a supported tab is active.
+          </p>
+        </section>
+        <section class="control-card presentation-card">
+          <div class="section-head">
+            <h2>Make it visible</h2>
+            <span class="section-icon" aria-hidden="true">◈</span>
+          </div>
+          <label class="option-row" for="showArrow"
+            ><span class="option-icon" aria-hidden="true">↗</span
+            ><span
+              ><strong>Move guidance</strong
+              ><small>Paths, special moves, and board evaluation.</small></span
+            ><input id="showArrow" type="checkbox" /></label
+          ><label class="option-row" for="showPanel"
+            ><span class="option-icon" aria-hidden="true">▤</span
+            ><span
+              ><strong>Coach panel</strong
+              ><small>Move, score, and readable continuations.</small></span
+            ><input id="showPanel" type="checkbox" /></label
+          ><label class="option-row" for="showAlternatives"
+            ><span class="option-icon" aria-hidden="true">⋮</span
+            ><span
+              ><strong>Alternative paths</strong
+              ><small>Show up to two additional engine lines.</small></span
+            ><input id="showAlternatives" type="checkbox"
+          /></label>
+        </section>
+        <div class="context-note">
+          <span aria-hidden="true">◎</span>
+          <p>
+            Runs locally by default.<br /><span
+              >Cloud fallback is off until you enable it.</span
+            >
+          </p>
+        </div>
+      </div>
+      <div
+        id="view-settings"
+        role="tabpanel"
+        aria-labelledby="tab-settings"
+        hidden
+      >
+        <section class="control-card">
+          <div class="eyebrow">ENGINE FOCUS</div>
+          <h2>Search and strength</h2>
+          <label class="option-row compact-option"
+            ><span
+              ><strong>Adapt search time to the board</strong
+              ><small>250 ms bullet · 500 ms blitz · 1–2 s study.</small></span
+            ><input id="automaticBudget" type="checkbox"
+          /></label>
+          <div class="section-head subcontrol">
+            <label for="searchTimeMs">Manual search time</label
+            ><output id="searchTimeMsValue">1000 ms</output>
+          </div>
+          <input
+            id="searchTimeMs"
+            class="range"
+            type="range"
+            min="100"
+            max="10000"
+            step="100"
+          /><label class="field-label" for="searchDepth">Depth ceiling</label
+          ><select id="searchDepth">
+            <option value="0">Time budget only</option>
+            <option value="8">Depth 8</option>
+            <option value="9">Depth 9</option>
+            <option value="10">Depth 10</option>
+            <option value="12">Depth 12</option>
+            <option value="14">Depth 14</option>
+            <option value="16">Depth 16</option>
+            <option value="18">Depth 18</option>
+            <option value="20">Depth 20</option>
+            <option value="24">Depth 24</option>
+            <option value="32">Depth 32</option></select
+          ><label class="field-label" for="strengthMode"
+            >Playing-strength control</label
+          ><select id="strengthMode">
+            <option value="full">Full engine strength</option>
+            <option value="skill">Skill level</option>
+            <option value="elo">Engine Elo estimate</option>
+          </select>
+          <div id="skillControls" hidden>
+            <div class="section-head subcontrol">
+              <label for="skillLevel">Skill level</label
+              ><output id="skillLevelValue">10</output>
+            </div>
+            <input
+              id="skillLevel"
+              class="range"
+              type="range"
+              min="0"
+              max="20"
+              step="1"
+            />
+          </div>
+          <div id="eloControls" hidden>
+            <label class="field-label" for="strengthElo"
+              >Engine Elo estimate</label
+            ><input
+              id="strengthElo"
+              type="number"
+              min="1320"
+              max="3190"
+              step="10"
+            />
+            <p id="strengthCapabilities" class="hint">
+              Analyze a position to discover this build's supported range.
+            </p>
+          </div>
+        </section>
+        <section class="control-card">
+          <h2>Board reading</h2>
+          <label class="field-label" for="turnOverride">Whose move is it?</label
+          ><select id="turnOverride">
+            <option value="auto">Detect from the position</option>
+            <option value="w">White to move</option>
+            <option value="b">Black to move</option>
+          </select>
+          <p class="hint">
+            Orientation and player colour are tracked separately.
+          </p>
+          <label class="field-label" for="manualFen"
+            >Correct missing position history</label
+          ><input
+            id="manualFen"
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Complete FEN matching the board"
+          />
+          <div class="button-row">
+            <button id="applyManualFen" type="button">Use this FEN</button
+            ><button id="clearManualFen" type="button">Detect again</button>
+          </div>
+          <p id="manualFenStatus" class="hint" role="status">
+            Used only in this tab while the pieces match. Never stored.
+          </p>
+        </section>
+        <section class="control-card">
+          <div class="row">
+            <div>
+              <h2>Autoplay</h2>
+              <p class="hint">Submit suggestions on input-capable boards.</p>
+            </div>
+            <label class="switch"
+              ><input
+                id="autoplay"
+                type="checkbox"
+                aria-label="Enable autoplay" /><span></span
+            ></label>
+          </div>
+          <div id="delayControls" class="subsection">
+            <label class="field-label" for="inputMode">Move input</label
+            ><select id="inputMode">
+              <option value="click">Click source and destination</option>
+              <option value="drag">Drag the piece</option></select
+            ><label class="field-label" for="timingMode">Timing</label
+            ><select id="timingMode">
+              <option value="random">Randomized within a range</option>
+              <option value="fixed">Fixed delay</option>
+            </select>
+            <div id="randomDelayControls">
+              <div class="section-head subcontrol">
+                <label for="minDelay">Minimum delay</label
+                ><output id="minDelayValue">300 ms</output>
+              </div>
+              <input
+                id="minDelay"
+                class="range"
+                type="range"
+                min="100"
+                max="10000"
+                step="50"
+              />
+              <div class="section-head subcontrol">
+                <label for="maxDelay">Maximum delay</label
+                ><output id="maxDelayValue">4000 ms</output>
+              </div>
+              <input
+                id="maxDelay"
+                class="range"
+                type="range"
+                min="100"
+                max="10000"
+                step="50"
+              />
+            </div>
+            <div id="fixedDelayControls" hidden>
+              <div class="section-head subcontrol">
+                <label for="fixedDelay">Fixed delay</label
+                ><output id="fixedDelayValue">1000 ms</output>
+              </div>
+              <input
+                id="fixedDelay"
+                class="range"
+                type="range"
+                min="100"
+                max="10000"
+                step="50"
+              />
+            </div>
+          </div>
+          <p class="subtle-note">
+            Read-only boards and rejected input are reported explicitly. A
+            dispatched click is never treated as proof of a move.
+          </p>
+        </section>
+        <section class="control-card">
+          <div class="row">
+            <div>
+              <h2>Practice variations</h2>
+              <p class="hint">
+                Scheduled orange moves, with your choice of policy.
+              </p>
+            </div>
+            <label class="switch"
+              ><input
+                id="imperfectMoves"
+                type="checkbox"
+                aria-label="Enable practice variations" /><span></span
+            ></label>
+          </div>
+          <div id="weakControls" class="subsection">
+            <label class="field-label" for="variationPolicy"
+              >Variation policy</label
+            ><select id="variationPolicy">
+              <option value="shallow">Shallow search · depth 2</option>
+              <option value="bounded">Alternative within a score limit</option>
+            </select>
+            <div class="section-head subcontrol">
+              <label for="minWeakInterval">Minimum unique positions</label
+              ><output id="minWeakIntervalValue">8</output>
+            </div>
+            <input
+              id="minWeakInterval"
+              class="range"
+              type="range"
+              min="1"
+              max="50"
+              step="1"
+            />
+            <div class="section-head subcontrol">
+              <label for="maxWeakInterval">Maximum unique positions</label
+              ><output id="maxWeakIntervalValue">20</output>
+            </div>
+            <input
+              id="maxWeakInterval"
+              class="range"
+              type="range"
+              min="1"
+              max="100"
+              step="1"
+            />
+            <div id="regretControls" hidden>
+              <div class="section-head subcontrol">
+                <label for="maxCentipawnLoss">Maximum loss in centipawns</label
+                ><output id="maxCentipawnLossValue">50</output>
+              </div>
+              <input
+                id="maxCentipawnLoss"
+                class="range"
+                type="range"
+                min="0"
+                max="500"
+                step="10"
+              />
+            </div>
+            <p class="hint">
+              Retries and settings changes do not count. A depth-2 result can
+              still be the best move.
+            </p>
+          </div>
+        </section>
+        <section class="control-card">
+          <div class="row">
+            <div>
+              <h2>Cloud fallback</h2>
+              <p class="hint">Allow Chess-API if the local engine fails.</p>
+            </div>
+            <label class="switch"
+              ><input
+                id="cloudFallback"
+                type="checkbox"
+                aria-label="Enable cloud fallback" /><span></span
+            ></label>
+          </div>
+          <p class="subtle-note">
+            When enabled, the provider receives the position and normal
+            connection metadata. Local mode sends no analysis requests
+            externally.
+          </p>
+        </section>
+      </div>
+      <div
+        id="view-diagnostics"
+        role="tabpanel"
+        aria-labelledby="tab-diagnostics"
+        hidden
+      >
+        <section class="control-card">
+          <div class="eyebrow">THE ACTUAL PIPELINE</div>
+          <h2>Inspect before guessing</h2>
+          <p class="hint">
+            Version, selected board, reconstructed FEN, engine response, and the
+            exact failure stage. Reports omit page URLs and account details.
+          </p>
+          <div class="button-row">
+            <button id="refreshDiagnostics" type="button">Refresh report</button
+            ><button id="copyDiagnostics" type="button">Copy JSON</button>
+          </div>
+          <pre id="diagnosticReport" tabindex="0">
+Open a supported board to collect diagnostics.</pre
+          >
+          <button type="button" class="wide-button" id="resetEngine">
+            Restart local engine
+          </button>
+          <p id="diagnosticAction" class="hint" role="status"></p>
+        </section>
+      </div>
+      <footer>
+        <span
+          ><i></i
+          ><span id="saveStatus" role="status"
+            >Settings saved locally</span
+          ></span
+        ><span>CHESS LAB.</span>
+      </footer>
+    </main>
+    <script src="appSettings.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

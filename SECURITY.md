@@ -1,26 +1,30 @@
 # Security
 
-Knightline's public source and release packages are reviewed for accidental disclosure before publication. This is a scoped review, not a guarantee that every possible vulnerability or secret has been detected.
+The 5.0 candidate is local-first and remains unpublished until its release gates pass. Secret scanning and publication checks are scoped checks, not a guarantee that every possible disclosure or vulnerability has been detected.
 
-## Current controls
+## Runtime boundaries
 
-- Engine requests use one fixed HTTPS endpoint and a body containing only FEN and search options.
-- Cookies and referrers are explicitly omitted; redirects are rejected.
-- The extension CSP permits local scripts and the configured engine connection. It does not permit remote script execution.
-- Provider text and candidate information are rendered as text. The panel's HTML template contains only trusted constants.
-- Publication and runtime packaging use explicit file lists. Private folders, environment files, keys, local reports, and browser profiles are excluded.
-- The loopback demo serves an explicit asset list, rejects unexpected Host/Origin headers, and does not expose the checkout as a general file server.
+- The local engine is an extension-owned Worker inside a single offscreen document. Engine JS/WASM, corresponding source, and network are pinned by SHA-256 digests.
+- Extension CSP permits local scripts, local WASM compilation, and the fixed optional Chess-API endpoint. Remote scripts and string evaluation are not permitted.
+- Local failure is retried once. Cloud transmission requires the stored explicit opt-in. Cloud requests omit credentials/referrers and reject redirects.
+- Returned moves must be legal for the current position. Board, game, position, and request identities guard progress/final responses and queued execution.
+- Input is confirmed against the expected legal board transition. Covered squares, missing promotion controls, read-only boards, cancellation, and rejected input return explicit results.
+- Provider text is rendered as text. Panel HTML is a constant template within a ShadowRoot. No credentials or account system exist in the project.
 
-## Review scope
+## Lichess input compatibility
 
-The prepublication review covered the staged source, installable ZIP, outbound request construction, manifest permissions/CSP, demo file serving, and locally fetched Git history. Gitleaks was run with redacted output. Additional checks inspect tracked files for personal filesystem paths and forbidden artifacts.
+The document-start MAIN-world script wraps only cg-board mousedown listeners. Only a specifically requested, bounded board event is delivered to that Chessground listener with its compatibility view of `isTrusted`. It does not change `Event.prototype`, normal user events, ordinary untrusted events, other listeners, or global trust checks. Listener removal is mapped to its original listener and capture mode.
 
-An earlier local demo server could expose surrounding project files by URL. It was replaced with an asset allowlist and regression tests before this publication.
+Requests are restricted to a connected cg-board, finite on-board coordinates, a small versioned JSON payload, and an unobstructed board target. The adapter has no network access or extension API capability. It is an input compatibility mechanism, not an authentication boundary: scripts already running on the chess page can dispatch DOM events. It never authorizes privileged extension operations.
 
-Git metadata and old public copies are separate from the contents of a release ZIP. Changing a licence or removing an address from a branch does not erase previously downloaded or cached copies.
+## Publication controls
 
-## Report a problem
+The package builder uses an explicit runtime/source allowlist, rejects paths outside its generated directory, and writes per-file digests and a ZIP checksum. Corresponding engine source and notices travel with the runtime. Browser profiles, raw local reports, reference files, secrets, and test tools are excluded.
 
-Use the repository's **Security → Advisories → Report a vulnerability** option when available. If private reporting is unavailable, open a minimal issue asking for a private contact method. Do not include credentials, exploit payloads, private logs, or personal information in a public issue.
+`tools/publication-check.cjs` inspects tracked paths and text without printing matching secret values. Gitleaks is additionally run with redacted output before a candidate is handed over. Existing attribution notices remain intentionally present. Changes to Git history cannot erase old clones or cached copies.
 
-The project does not collect secrets or provide an account system. Upstream engine logging and the host sites' behaviour are outside this repository's control. See [PRIVACY.md](PRIVACY.md) for the data flow.
+The classroom server uses an asset allowlist, loopback binding, Host/Origin checks, and no general directory serving. Its regression tests cover the file-access boundary.
+
+## Reporting
+
+Use private GitHub security reporting when available. Otherwise open a minimal issue requesting a private contact method. Do not post credentials, private logs, or personal details in a public issue. The project does not control host-site behaviour or the optional cloud provider's retention.

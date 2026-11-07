@@ -28,7 +28,7 @@ class BoardAdapter {
     }
     return globalThis.ChessHelperApp.autoMoveController.startAnalysis(
       position.fen,
-      { allowImperfect: position.allowImperfect }
+      { allowImperfect: position.allowImperfect },
     );
   }
 
@@ -36,10 +36,17 @@ class BoardAdapter {
     return this.executeMove(move);
   }
 
-  requestMoveExecution(move, expectedFen) {
-    return this.executionHandler
-      ? this.executionHandler(move, expectedFen)
-      : false;
+  async requestMoveExecution(move, expectedFen) {
+    this.lastExecutionResult = null;
+    const result = this.executionHandler
+      ? await this.executionHandler(move, expectedFen)
+      : {
+          accepted: false,
+          kind: "input",
+          reason: "No board input handler is attached.",
+        };
+    this.lastExecutionResult = result;
+    return result;
   }
 
   executeMove(move) {
@@ -47,7 +54,12 @@ class BoardAdapter {
   }
 
   verifyMoveResult(move) {
-    return this.verifyHandler ? this.verifyHandler(move) : Boolean(move);
+    if (this.verifyHandler) return this.verifyHandler(move);
+    const result = this.lastExecutionResult,
+      current = this.updateBoard();
+    return Boolean(
+      result?.accepted && current && current.fen === result.observedFen,
+    );
   }
 }
 

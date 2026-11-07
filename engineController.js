@@ -2,65 +2,56 @@ class EngineController {
   constructor() {
     this.candidates = [];
     this.requestId = 0;
+    this.currentId = null;
+    this.onProgress = null;
+    chrome.runtime.onMessage.addListener((message) => {
+      if (
+        message?.type === "ANALYSIS_PROGRESS" &&
+        message.id === this.currentId
+      )
+        this.onProgress?.(message.data);
+    });
   }
-
   getCandidates() {
     return [...this.candidates];
   }
-
-  updateCandidates(newCandidates = []) {
-    this.candidates = Array.isArray(newCandidates) ? [...newCandidates] : [];
+  updateCandidates(candidates = []) {
+    this.candidates = Array.isArray(candidates) ? [...candidates] : [];
   }
-
-  async analyze(boardFen, elo = 1800, options = {}) {
-    if (!boardFen) {
-      throw new Error('Cannot analyze an empty position.');
-    }
-
-    const requestId = ++this.requestId;
-
+  async analyze(fen, elo = 1800, options = {}) {
+    if (!fen)
+      throw new KnightlineError(
+        "position",
+        "Cannot analyze an empty position.",
+      );
+    const serial = ++this.requestId;
+    const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${serial}`;
+    this.currentId = id;
     const response = await chrome.runtime.sendMessage({
-      type: 'ANALYZE_FEN',
-      fen: boardFen,
+      type: "ANALYZE_FEN",
+      id,
+      fen,
       elo,
-      depth: options.depth
+      ...options,
     });
-
-    if (requestId !== this.requestId) {
-      return null;
-    }
-
-    if (chrome.runtime.lastError) {
-      throw new Error(chrome.runtime.lastError.message);
-    }
-
-    if (!response?.ok) {
-      throw new Error(response?.error || 'Engine request failed.');
-    }
-
-    const data = response.data || {};
-
-    // Accept several candidate shapes so the engine adapter is not tied to
-    // one server response representation.
-    const candidates = Array.isArray(data.candidates)
-      ? data.candidates
-      : Array.isArray(data.variants)
-        ? data.variants
-        : Array.isArray(response.candidates)
-          ? response.candidates
-          : [];
-
-    this.updateCandidates(candidates.length ? candidates : [data]);
-
-    return {
-      ...data,
-      candidates: candidates.length ? candidates : [data]
-    };
+    if (serial !== this.requestId) return null;
+    if (!response?.ok)
+      throw new KnightlineError(
+        response?.error?.kind || "engine",
+        response?.error?.message ||
+          response?.error ||
+          "Local engine request failed.",
+      );
+    this.updateCandidates(response.data?.candidates || [response.data]);
+    return response.data;
   }
-
   cancel() {
     this.requestId++;
+    if (this.currentId)
+      chrome.runtime
+        .sendMessage({ type: "CANCEL_ANALYSIS", id: this.currentId })
+        .catch(() => {});
+    this.currentId = null;
   }
 }
-
 globalThis.EngineController = EngineController;

@@ -1,124 +1,88 @@
-<p align="center">
-  <img src="docs/images/readme-banner.svg" alt="Knightline Chess Lab. A clearer view of your next move." width="100%">
-</p>
-
-<p align="center">
-  <strong>Manifest V3</strong> &nbsp; · &nbsp; <strong>Chrome & Edge</strong> &nbsp; · &nbsp; <strong>Version 4.8.2</strong> &nbsp; · &nbsp; <a href="LICENSE">Hippocratic 3.0 Core</a>
-</p>
-
-<p align="center">
-  <a href="#get-started">Install</a> &nbsp; / &nbsp;
-  <a href="#see-it-in-action">Preview</a> &nbsp; / &nbsp;
-  <a href="#offline-demo">Offline demo</a> &nbsp; / &nbsp;
-  <a href="docs/ARCHITECTURE.md">Architecture</a> &nbsp; / &nbsp;
-  <a href="PRIVACY.md">Privacy</a>
-</p>
+<p align="center"><img src="docs/images/readme-banner.svg" alt="Knightline Chess Lab. Local analysis, a clearer next move." width="100%"></p>
+<p align="center"><strong>Manifest V3</strong> · <strong>Local Stockfish</strong> · <strong>5.0 development candidate</strong> · <a href="LICENSE">GPLv3</a></p>
+<p align="center"><a href="#try-the-candidate">Install</a> / <a href="#how-it-works">Features</a> / <a href="docs/ACCEPTANCE.md">Verification status</a> / <a href="docs/ARCHITECTURE.md">Architecture</a> / <a href="PRIVACY.md">Privacy</a></p>
 
 # Knightline · Chess Lab
 
-Knightline turns a chess board into a position you can explore. It reads the pieces on Chess.com or Lichess, asks a cloud Stockfish service for a suggestion, checks the returned move against the current position, and draws its path on the board.
+A self-contained chess extension for desktop Chrome and Edge. Knightline reads a Chess.com or Lichess board, analyses it with bundled Stockfish, checks each suggested move against the current position, and draws a clear path across the board. Built by [sixfiguredev0](https://github.com/sixfiguredev0) for a programming-class project.
 
-The interface stays out of the way: white dashed paths, cyan square highlights, a compact coach panel, and settings that live in your browser. Built by [sixfiguredev0](https://github.com/sixfiguredev0) as a programming-class project.
+**5.0 is under verification.** This branch does not replace the published release. The reported 4.8.2 position now passes real offline analysis. The affected installation must still successfully repeat the live-board workflow before release. See the [acceptance ledger](docs/ACCEPTANCE.md) for the difference between controlled fixtures, public-site checks, and tests still pending.
 
-## See it in action
+![Classroom preview of the board, coach panel, and extension popup](docs/images/classroom-demo.png)
 
-![Offline demonstration showing the board, the coach panel, and the Knightline popup](docs/images/classroom-demo.png)
+*This preview is the labelled classroom demo with a simulated engine. The installed extension runs the bundled real WASM engine.*
 
-*The classroom preview uses a simulated engine. The installed extension uses the remote engine service.*
+## How it works
 
-<table>
-  <tr>
-    <td width="50%" valign="top"><h3>A purposeful popup</h3><p>Adjust search depth, toggle the presentation, and set whose turn it is. Practice controls have their own tab.</p><img src="docs/images/popup-overview.png" alt="Knightline popup" width="320"></td>
-    <td width="50%" valign="top"><h3>A board companion</h3><p>Read the move in standard notation, inspect the evaluation from White's perspective, and follow the next line. Drag or collapse the panel.</p><img src="docs/images/coach-panel.png" alt="Knightline coach panel" width="304"></td>
-  </tr>
-</table>
+- **Analysis on your device.** One Stockfish.js 19.0.1 lite Worker, one thread, a 32 MB hash, and three candidate lines. No account, key, subscription, or hosting required. The Worker is released after 60 idle seconds.
+- **A board you choose.** Site adapters prefer the main board and exclude miniatures. Ambiguous boards require an explicit selection. Orientation and player colour are tracked separately.
+- **Positions with provenance.** Matching complete FEN, legal move-history replay, and observed transitions preserve known state. Missing history is disclosed. Turn and complete-FEN corrections are available; unknown castling rights are omitted.
+- **Guidance with detail.** White dashed paths, orange practice variations, castling rook paths, promotion indicators, optional alternative paths, and White-perspective evaluation. The charcoal and green coach panel moves, collapses, and remembers its position.
+- **Explicit gameplay controls.** Autoplay, click or drag input, fixed or bounded randomized delays, and depth-2 or bounded-loss variations. Settings apply across contexts. Known read-only boards report their limitation. Submitted input is verified against the expected legal transition.
+- **Interruptions handled.** Board changes, navigation, manual input, disablement, and game end cancel obsolete work. Position and request identities prevent stale results from replacing a newer position.
+- **Inspectible failures.** Diagnostics expose installed version, selected board, FEN stages, engine result, and input rejection. Copied reports exclude account fields and page URLs, and redact URLs, paths, and email-like strings from errors.
 
-## What it does
+## Compatibility and verification
 
-- **Makes the suggestion visible.** A dashed path connects highlighted squares without blocking board input. Destination pulses and interface transitions respect reduced-motion preferences.
-- **Keeps the position in sync.** Stable-board detection and request identifiers discard responses for positions that have changed.
-- **Checks chess rules locally.** The bundled chess.js library validates moves and formats readable SAN continuations. Available FEN metadata and observed history preserve castling and en-passant state.
-- **Handles interruptions explicitly.** Loading, missing-board, finished-position, timeout, and retry states replace stale suggestions.
-- **Offers controlled practice.** On bots and study boards, optional autoplay uses an ordered delay range. Optional shallow-search practice variations appear in orange.
+Initial scope: standard chess on desktop Chromium browsers with Manifest V3 offscreen support, Chrome/Edge 116 or later. Browser engine automation has been run in fresh Chromium profiles; Edge and the affected existing Chrome installation remain explicit acceptance gates.
 
-## Where it runs
+| Context | Intended analysis / orange variations | Autoplay when explicitly enabled | Evidence so far |
+| --- | --- | --- | --- |
+| Live rounds | Available on the player's turn | Input-capable boards | Controlled integration; affected installation pending |
+| Daily / correspondence | Same controls | Input-capable boards | Controlled context routing; real games pending |
+| Puzzle / training | Available | Input-capable boards | Controlled integration; real-site solver workflow pending |
+| Bot games | Available on the player's turn | Input-capable boards | Controlled move handling; real bot games pending |
+| Analysis / study | Available for either side | Input-capable boards | Actual public Chess.com and Lichess analysis and move input checked |
+| Spectator | Available | Explicit read-only rejection | Public Lichess TV analysis checked; broader routes pending |
 
-| Context | Analysis, suggestions, and arrows | Practice autoplay | Shallow-search variations |
-| --- | :---: | :---: | :---: |
-| Live games | Yes, on the displayed player's turn | No | No |
-| Puzzles and training | Yes | No | No |
-| Chess.com Play Computer | Yes | Optional | Optional |
-| Analysis and study boards | Yes, for either side | Optional | Optional |
+This matrix describes intended capability and observed evidence, not blanket certification of every site page. A site modal, a covered square, incomplete history, or rejected synthetic input produces an explicit explanation. Knightline is independent of Chess.com and Lichess.
 
-The 4.8 series restores analysis beyond the study-only restriction in the original public version. Version 4.8.2 fixes an engine-compatibility regression after ordinary double-pawn pushes such as `1. e4`: a non-capturable en-passant target is omitted from exported FEN, while genuine legal en-passant captures are preserved. Automated submission remains limited to practice contexts. Use of assistance during human games may violate the host site's rules. Knightline is independent of Chess.com and Lichess and is not endorsed by either service.
+## Try the candidate
 
-## Get started
+1. Use the locally generated `release/Knightline-Chess-Lab-v5.0.0-dev.zip`, or load this branch's checkout. Existing public releases are earlier versions.
+2. Extract the ZIP. Open `chrome://extensions` or `edge://extensions` and enable **Developer mode**.
+3. Choose **Load unpacked**, then select the directory containing `manifest.json`.
+4. Disable other Knightline copies while testing, refresh the chess tab, and enable **Board analysis** in the popup.
+5. Use **Overview** to select a board, **Controls** to adjust behaviour, and **Diagnostics** to inspect the actual pipeline.
 
-### Install the extension
+A fresh installation starts with analysis, autoplay, variations, and cloud fallback disabled. Existing explicit preferences are preserved by migration. Loading a different unpacked folder may create a separate extension instance with separate settings. Do not load two enabled copies on the same page.
 
-1. Download the ZIP from the repository's [Releases](https://github.com/sixfiguredev0/knightline-chess-lab/releases) page and extract it. You can also clone this repository.
-2. Open `chrome://extensions` or `edge://extensions` and enable **Developer mode**.
-3. Choose **Load unpacked**. Select the extracted extension folder, or the repository root. The selected folder must contain `manifest.json`.
-4. Open a supported chess board, open Knightline, and enable **Board analysis**.
+### Search and strength
 
-**Updating an existing installation:** reload the extension, then refresh your open chess tabs. Loading a different folder may create a separate extension instance with its own settings.
+Automatic time budgets are 250 ms for bullet, 500 ms for blitz, 1 second for rapid or unknown controls, and 2 seconds for classical and study. Manual time and depth ceilings are independent of playing strength. Skill and engine Elo controls use the bundled engine's actual UCI capabilities; an engine Elo setting is an estimate, not a guaranteed player rating. Reached depth is shown in the panel.
 
-No build step, account, API key, or subscription is required. Real engine analysis needs internet access. Firefox is not supported by this manifest.
+Practice intervals count unique successfully analysed positions within a game. Retries, redraws, and settings changes do not advance the interval. A shallow depth-2 result can still be the best move. The bounded-loss alternative applies a centipawn limit to the available candidate lines.
 
-### Set the engine focus
+### Diagnose a board
 
-The depth slider maps the original internal `elo` setting to requested depths from 8 to 18. It is a search profile, not a calibrated player rating. The coach panel reports the depth actually returned by the provider, which may be lower than requested.
+Open **Diagnostics → Refresh report → Copy JSON**. The report distinguishes reconstruction, engine, connectivity, read-only input, and rejected-move failures. If turn detection is uncertain, use **Controls → Whose move is it?** A complete FEN correction must match the selected board's pieces; it is used only in that tab and is discarded when the pieces change.
 
-If turn detection needs help, open **Settings → Whose move is it?** and choose a side. A manually imported midgame board without complete FEN metadata cannot reveal historical castling rights; Knightline omits unknown rights rather than inventing them.
+For the older failing installation, use the read-only collector in [tools/read-only-diagnostics.js](tools/read-only-diagnostics.js). Open the exact failing tab, open DevTools → Console, select the **Knightline extension execution context**, and paste the collector. Comparison pages: [Lichess TV](https://lichess.org/tv), [Lichess analysis](https://lichess.org/analysis), and [Chess.com analysis](https://www.chess.com/analysis). The collector does not submit a move or make a network request.
 
-### Explore practice variations
+## Development and classroom demo
 
-On supported practice pages, **Explore alternatives** periodically requests a depth-2 search and displays the result in orange. The interval counts completed analyses. Cancelled or failed requests do not advance it. A shallow search can still find the best move, so an orange move is not guaranteed to be a mistake.
-
-Some boards reject simulated clicks. Practice autoplay checks for a position change and reports rejection; promotion submission is left to the user. Actual bot submission has not been exhaustively verified.
-
-## Offline demo
-
-The full source checkout includes a playable classroom demonstration:
+From a source checkout, Node.js 22 or later is recommended for development checks. The extension itself needs no build step after checkout; generated panel styles are committed.
 
 ```sh
-npm run demo
+npm install
+npm test
+npm run verify:vendor
+npm run test:browser
+npm run test:execution
+npm run test:engine
+npm run test:extension
+npm run package
 ```
 
-Open [127.0.0.1:4317/analysis](http://127.0.0.1:4317/analysis). Flip the board, trigger an orange practice move, test a connection error, or adjust the popup. The clearly labelled simulated engine needs no account or internet access. Demo browser APIs are separate from the extension and are excluded from release ZIPs.
+Browser scripts use `playwright-core`. Install a Chromium build with `npx playwright-core install chromium`, or set `CHROMIUM_PATH` to your test browser executable. `PLAYWRIGHT_MODULE` optionally selects an existing Playwright installation. `npm run test:live` checks public pages and is separate from the deterministic suite. `npm run test:reported-position` checks the reported Lichess position offline. `npm run test:site-promotions` checks real promotion controls and reports unavailable pages without treating them as passes. It does not use an existing signed-in profile or start a game against another person.
 
-[Presentation walkthrough →](PRESENTATION.md)
+`npm run demo` serves a simulated classroom board at `http://127.0.0.1:4317/analysis`. It binds only to loopback and serves an explicit asset list. The demo shim is excluded from installed packages.
 
-## Development
+Packaging verifies pinned engine/source digests, regenerates panel styles, and produces a ZIP, unpacked installation, per-file manifest, and `SHA256SUMS.txt`. Reports and local browser profiles are excluded. Packaging does not publish anything.
 
-Node.js 20 or later is recommended. The extension itself has no runtime npm dependencies.
+## Source and licences
 
-```sh
-npm test                 # Unit and local-server security checks
-npm install              # Optional browser-test dependency
-npx playwright-core install chromium
-npm run test:browser     # Offline UI and interaction checks
-npm run test:extension   # Real Manifest V3 messaging, using fixtures
-npm run test:live        # Public analysis boards and the real provider
-npm run package          # Allowlisted, installable extension ZIP
-```
+The 5.0 distribution is GPLv3. Keep [LICENSE](LICENSE), [NOTICE](NOTICE), and upstream notices with redistributions. The exact engine source, build instructions, and NNUE network are included under [sources/](sources/README.md), including in the installable ZIP. The extension's own JavaScript, HTML, and CSS are supplied in editable form.
 
-You can point `CHROMIUM_PATH` at a compatible installed Chromium executable. Browser tests start fresh profiles. Live checks need network access and do not log into accounts or play human games.
+Earlier MIT and Hippocratic licence grants remain valid for the versions to which they applied; their notices are retained under `docs/licenses/`. The BSD chess.js notice is in `lib/LICENSE-chess.js`. The inspiration extension's service, accounts, and distribution identity are not included.
 
-The suite covers legal moves, settings validation, scoring, cancellation, request caching, geometry, popup persistence, live and puzzle page support, practice execution, and browser messaging. See [architecture and testing](docs/ARCHITECTURE.md) for the module map and verification scope.
-
-## Privacy and publication safety
-
-The extension sends position FEN and search options to `https://chess-api.com/v1`. Settings stay in local extension storage. No cookies, usernames, page URLs, or account tokens are included in the request body. The provider still receives normal connection metadata, including the public IP address.
-
-The source and release use explicit publication/package allowlists. Backups, the inspiration extension, local reports, browser profiles, credentials, and environment files are excluded. The local demo serves only its named public assets on the loopback interface.
-
-[Privacy details](PRIVACY.md) · [Security review and reporting](SECURITY.md)
-
-## License and attribution
-
-New Knightline work is available under the [Hippocratic License 3.0 core terms](LICENSE), with copyright and attribution notices in [NOTICE](NOTICE). The licence requires notice retention and restricts specified human-rights abuses. It is an ethical-source licence and does not meet the OSI Open Source Definition. A licence is a legal condition, not a technical barrier against misuse.
-
-Earlier code published as Chess Analysis Engine 4.7.0 remains available under its original MIT grant. That grant is retained in [the legacy notice](docs/licenses/MIT-legacy.txt); it cannot be retroactively revoked. The bundled chess.js rules library remains BSD-2-Clause under [its own licence](lib/LICENSE-chess.js).
-
-The supplied reference informed the dashed overlay and orange practice-move behaviour. Its proprietary account system, backend, extension identity, and update mechanism are not included. Knightline uses the [Chess-API service](https://chess-api.com/) for remote search and [chess.js](https://github.com/jhlywa/chess.js) for local rules.

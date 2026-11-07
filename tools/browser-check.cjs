@@ -1,137 +1,228 @@
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const {createServer} = require('./demo-server.cjs');
-const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright-core');
-const root = path.resolve(__dirname, '..');
-fs.mkdirSync(path.join(root,'artifacts'),{recursive:true});
+const assert = require("node:assert/strict"),
+  fs = require("node:fs"),
+  path = require("node:path");
+const { createServer } = require("./demo-server.cjs");
+const { chromium } = require(
+  process.env.PLAYWRIGHT_MODULE || "playwright-core",
+);
+const root = path.resolve(__dirname, "..");
 (async () => {
-  const server = await createServer(0), port = server.address().port;
+  const server = await createServer(0);
   let browser;
-  const errors = []; let checks = 0;
-  const check = (value, message) => { assert.ok(value, message); checks++; console.log(`PASS ${message}`); };
+  const errors = [],
+    checks = [];
+  const pass = (message) => {
+    checks.push(message);
+    console.log("PASS " + message);
+  };
   try {
-    browser = await chromium.launch({headless:true, ...(process.env.CHROMIUM_PATH ? {executablePath:process.env.CHROMIUM_PATH} : {})});
-    const page = await browser.newPage({viewport:{width:1440,height:1000},deviceScaleFactor:1});
-    page.on('pageerror', error => errors.push(error.message));
-    await page.goto(`http://127.0.0.1:${port}/analysis`);
-    await page.locator('#chesshelper-live-panel[data-stage="ready"]').waitFor();
-    check(await page.locator('#chp-move').innerText() === 'd4','legal SAN suggestion appears');
-    check(await page.locator('#chp-score').innerText() === '+0.42','signed evaluation appears');
-    check(await page.locator('#chesshelper-arrow-overlay rect').count() === 2,'source and destination highlights render');
-    check(await page.locator('#chesshelper-arrow-overlay line').getAttribute('stroke-dasharray') === '8,16','reference dashed arrow spacing');
-    const popup = page.frameLocator('iframe');
-    await popup.locator('#elo').waitFor();
-    await popup.locator('.logo img').evaluate(image => image.decode());
-    check(await popup.locator('.logo img').evaluate(image => image.naturalWidth > 0),'custom Knightline icon loads');
-    check(await popup.locator('#eloValue').innerText() === 'Depth 14','popup displays actual depth profile');
-    const lineBefore = await page.locator('#chesshelper-arrow-overlay line').getAttribute('x1');
-    await page.locator('#demo-flip').click();
-    await page.waitForFunction(x => document.querySelector('#chesshelper-arrow-overlay line')?.getAttribute('x1') !== x, lineBefore);
-    check(true,'arrow follows flipped board');
-    await page.locator('#demo-variation').click();
-    await page.locator('#chesshelper-live-panel[data-stage="variation"]').waitFor();
-    check(await page.locator('#chesshelper-arrow-overlay line').getAttribute('stroke') === '#ffa500','shallow practice variation switches arrow to orange');
-    check(await page.locator('#chp-depth').innerText() === 'Depth 2 · practice','practice variation uses depth two');
-    await popup.locator('#showArrow').uncheck();
-    await page.waitForFunction(() => !document.querySelector('#chesshelper-arrow-overlay'));
-    await page.evaluate(() => window.dispatchEvent(new Event('scroll')));
-    await page.waitForTimeout(100);
-    check(await page.locator('#chesshelper-arrow-overlay').count() === 0,'disabled arrow stays hidden after scroll');
-    await popup.locator('#showArrow').check();
-    await page.locator('#chesshelper-arrow-overlay').waitFor();
-    await popup.locator('#showPanel').uncheck();
-    await page.locator('#chesshelper-live-panel').waitFor({state:'hidden'});
-    check(true,'panel visibility updates without a new engine request');
-    await popup.locator('#showPanel').check();
-    await popup.locator('#tab-settings').click();
-    await popup.locator('#autoplay').check();
-    await popup.locator('#minDelay').fill('6000');
-    check(await popup.locator('#maxDelay').inputValue() === '6000','minimum delay keeps maximum ordered');
-    await popup.locator('#autoplay').uncheck();
-    await popup.locator('#tab-analysis').click();
-    await page.locator('#chp-collapse').click();
-    check(await page.locator('#chp-body').isHidden(),'coach panel collapses');
-    await page.locator('#chp-collapse').click();
-    await page.locator('#demo-error').click();
+    browser = await chromium.launch({
+      headless: true,
+      executablePath: process.env.CHROMIUM_PATH,
+    });
+    const page = await browser.newPage({
+      viewport: { width: 1440, height: 1100 },
+    });
+    page.on("pageerror", (error) => errors.push(error.message));
+    await page.goto(`http://127.0.0.1:${server.address().port}/analysis`);
+    const ready = () =>
+      page.locator('#chesshelper-live-panel[data-stage="ready"]').waitFor();
+    await ready();
+    assert.equal(await page.locator("#chp-move").innerText(), "d4");
+    assert.equal(await page.locator("#chp-score").innerText(), "+0.42");
+    assert.equal(
+      await page.locator("#chesshelper-arrow-overlay rect.chp-source").count(),
+      1,
+    );
+    assert.equal(
+      await page
+        .locator("#chesshelper-arrow-overlay line")
+        .first()
+        .getAttribute("stroke-dasharray"),
+      "8,16",
+    );
+    pass(
+      "simulated classroom suggestion renders legal notation, evaluation and dashed guidance",
+    );
+    const popup = page.frameLocator("iframe");
+    await popup.locator("#enabled").waitFor();
+    assert.equal(
+      await popup
+        .locator(".logo img")
+        .evaluate((image) => image.complete && image.naturalWidth > 0),
+      true,
+    );
+    pass("popup artwork loads");
+    await popup.locator("#tab-analysis").focus();
+    await popup.locator("#tab-analysis").press("ArrowRight");
+    assert.equal(
+      await popup.locator("#tab-settings").getAttribute("aria-selected"),
+      "true",
+    );
+    await popup.locator("#automaticBudget").uncheck();
+    assert.equal(await popup.locator("#searchTimeMs").isEnabled(), true);
+    await popup.locator("#strengthMode").selectOption("skill");
+    assert.equal(await popup.locator("#skillLevel").isVisible(), true);
+    pass("keyboard tabs and separate search and strength controls work");
+    await popup.locator("#autoplay").check();
+    await popup.locator("#minDelay").fill("6000");
+    assert.equal(await popup.locator("#maxDelay").inputValue(), "6000");
+    await popup.locator("#autoplay").uncheck();
+    pass("delay range stays ordered and autoplay remains an explicit setting");
+    await popup.locator("#tab-analysis").click();
+    const before = await page
+      .locator("#chesshelper-arrow-overlay line")
+      .first()
+      .getAttribute("x1");
+    await page.locator("#demo-flip").click();
+    await page.waitForFunction(
+      (x) =>
+        document
+          .querySelector("#chesshelper-arrow-overlay line")
+          ?.getAttribute("x1") !== x,
+      before,
+    );
+    pass("guidance follows a flipped board");
+    await page.locator("#demo-variation").click();
+    await page
+      .locator('#chesshelper-live-panel[data-stage="variation"]')
+      .waitFor();
+    assert.equal(
+      await page
+        .locator("#chesshelper-arrow-overlay line")
+        .first()
+        .getAttribute("stroke"),
+      "#ffa500",
+    );
+    assert.match(await page.locator("#chp-depth").innerText(), /Depth 2/);
+    pass("scheduled shallow variation uses orange and reports depth two");
+    await popup.locator("#showArrow").uncheck();
+    await page
+      .locator("#chesshelper-arrow-overlay")
+      .waitFor({ state: "detached" });
+    await page.evaluate(() => dispatchEvent(new Event("scroll")));
+    assert.equal(await page.locator("#chesshelper-arrow-overlay").count(), 0);
+    await popup.locator("#showArrow").check();
+    await page.locator("#chesshelper-arrow-overlay").waitFor();
+    pass("visibility setting survives redraw");
+    await page.locator("#chp-collapse").click();
+    assert.equal(await page.locator("#chp-body").isHidden(), true);
+    await page.locator("#chp-collapse").click();
+    pass("panel collapse works inside isolated styles");
+    await page.locator("#demo-error").click();
     await page.locator('#chesshelper-live-panel[data-stage="error"]').waitFor();
-    check(await page.locator('#chp-retry').isVisible(),'engine error offers retry');
-    await page.evaluate(() => { globalThis.demoFail = false; });
-    await page.locator('#chp-retry').click();
-    await page.locator('#chesshelper-live-panel[data-stage="variation"]').waitFor();
-    check(true,'retry recovers from a failed request');
-    await page.locator('#demo-reset').click();
-    await page.locator('#chesshelper-live-panel[data-stage="ready"]').waitFor();
-    await page.screenshot({path:path.join(root,'artifacts','classroom-demo.png'),fullPage:true,animations:'disabled'});
-    const popupPage = await browser.newPage({viewport:{width:400,height:900},deviceScaleFactor:1});
-    await popupPage.goto(`http://127.0.0.1:${port}/popup.html`);
-    await popupPage.locator('body').evaluate(element => element.style.maxHeight = 'none');
-    await popupPage.locator('#enabled').waitFor({state:'attached'}); await popupPage.waitForTimeout(350); await popupPage.locator('.app').screenshot({path:path.join(root,'artifacts','popup-overview.png'),animations:'disabled'});
-    await popup.locator('#tab-settings').click();
-    await popupPage.locator('#tab-settings').click();
-    await popupPage.locator('.app').screenshot({path:path.join(root,'artifacts','popup-settings.png'),animations:'disabled'});
+    assert.equal(await page.locator("#chp-retry").isVisible(), true);
+    await page.evaluate(() => {
+      globalThis.demoFail = false;
+    });
+    await page.locator("#chp-retry").click();
+    await page
+      .locator('#chesshelper-live-panel[data-stage="variation"]')
+      .waitFor();
+    pass("error state offers a working retry");
+    await page.locator("#demo-reset").click();
+    await ready();
+    fs.mkdirSync(path.join(root, "artifacts"), { recursive: true });
+    await page.screenshot({
+      path: path.join(root, "artifacts", "classroom-demo.png"),
+      fullPage: true,
+      animations: "disabled",
+    });
+    await page
+      .locator("#chesshelper-live-panel")
+      .screenshot({ path: path.join(root, "artifacts", "coach-panel.png") });
+    const popupPage = await browser.newPage({
+      viewport: { width: 420, height: 1200 },
+    });
+    await popupPage.goto(
+      `http://127.0.0.1:${server.address().port}/popup.html`,
+    );
+    await popupPage.waitForTimeout(200);
+    await popupPage.locator(".app").screenshot({
+      path: path.join(root, "artifacts", "popup-overview.png"),
+      animations: "disabled",
+    });
+    await popupPage.locator("#tab-settings").click();
+    await popupPage.locator(".app").screenshot({
+      path: path.join(root, "artifacts", "popup-settings.png"),
+      animations: "disabled",
+    });
     await popupPage.close();
-    await popup.locator('#tab-analysis').click();
-    await page.locator('#chesshelper-live-panel').screenshot({path:path.join(root,'artifacts','coach-panel.png')});
-    // A stale response must not replace a newer board after a quick move.
-    await page.evaluate(() => { globalThis.demoDelay = 900; });
-    await popup.locator('#elo').fill('1900');
-    await page.locator('#chesshelper-live-panel[data-stage="loading"]').waitFor();
-    await page.evaluate(() => { demoGame.move('d4'); renderDemoBoard(); });
-    await page.waitForTimeout(1600);
-    check(await page.locator('#chp-move').innerText() !== 'd4','discarded stale response after position changed');
-    await popup.locator('#enabled').uncheck();
-    await page.waitForFunction(() => !document.querySelector('#chesshelper-live-panel') && !document.querySelector('#chesshelper-arrow-overlay'));
-    check(true,'disabling removes both overlay and panel');
-    const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('chess-lab-demo')));
-    check(persisted.enabled === false && persisted.elo === 1900,'settings persist immediately');
-    await page.emulateMedia({reducedMotion:'reduce'});
-    await popup.locator('#enabled').check();
-    await page.locator('#chesshelper-live-panel').waitFor();
-    const animation = await page.locator('#chesshelper-live-panel').evaluate(element => getComputedStyle(element).animationName);
-    check(animation === 'none','reduced motion disables animation');
-    const practicePage = await browser.newPage({viewport:{width:1440,height:1000}});
-    practicePage.on('pageerror', error => errors.push(error.message));
-    await practicePage.goto(`http://127.0.0.1:${port}/analysis`);
-    await practicePage.locator('#chesshelper-live-panel[data-stage="ready"]').waitFor();
-    await practicePage.evaluate(() => chrome.storage.local.set({turnOverride:'b'}));
-    await practicePage.waitForFunction(() => document.querySelector('#chesshelper-live-panel')?.dataset.stage === 'ready' && !document.getElementById('chp-eval').textContent.includes('d2 → d4'));
-    check(true,'turn override reanalyzes an unchanged board for Black');
-    await practicePage.evaluate(() => chrome.storage.local.set({turnOverride:'auto',autoplay:true,minDelay:1400,maxDelay:1400}));
-    await practicePage.locator('#chesshelper-live-panel[data-stage="ready"]').waitFor();
-    await practicePage.evaluate(() => chrome.storage.local.set({autoplay:false}));
-    await practicePage.waitForTimeout(1600);
-    check(await practicePage.evaluate(() => demoGame.history().length) === 16,'turning autoplay off cancels a queued move');
-    await practicePage.evaluate(() => chrome.storage.local.set({autoplay:true,minDelay:100,maxDelay:100}));
-    await practicePage.waitForFunction(() => demoGame.history().length > 16);
-    await practicePage.evaluate(() => chrome.storage.local.set({autoplay:false}));
-    check(true,'practice autoplay executes a legal move on the offline analysis board');
-    await practicePage.route('**/play/online', route => route.fulfill({contentType:'text/html',body:fs.readFileSync(path.join(root,'tools/demo.html'),'utf8')}));
-    await practicePage.goto(`http://127.0.0.1:${port}/play/online`);
-    await practicePage.evaluate(() => chrome.storage.local.set({autoplay:true,minDelay:100,maxDelay:100,imperfectMoves:true,minWeakInterval:1,maxWeakInterval:1}));
-    await practicePage.locator('#chesshelper-live-panel[data-stage="ready"]').waitFor();
-    await practicePage.waitForTimeout(900);
-    check(await practicePage.evaluate(() => demoGame.history().length) === 16,'live games receive suggestions without autoplay or weak-move simulation');
-    check(await practicePage.locator('#chesshelper-arrow-overlay').count() === 1,'live-game path renders move guidance');
-    for (const puzzlePath of ['/puzzles','/training']) {
-      await practicePage.route(`**${puzzlePath}`, route => route.fulfill({contentType:'text/html',body:fs.readFileSync(path.join(root,'tools/demo.html'),'utf8')}));
-      await practicePage.goto(`http://127.0.0.1:${port}${puzzlePath}`);
-      await practicePage.evaluate(() => chrome.storage.local.set({turnOverride:'b',autoplay:false}));
-      await practicePage.locator('#chesshelper-live-panel[data-stage="ready"]').waitFor();
-      check(await practicePage.locator('#chesshelper-arrow-overlay').count() === 1,`${puzzlePath} supports analysis even with the board flipped away from the solver`);
-    }
-    await practicePage.close();
-    check(!errors.length,`no page errors (${errors.join('; ')})`);
-    const iconPage = await browser.newPage({viewport:{width:128,height:128}});
-    const iconSvg = fs.readFileSync(path.join(root,'icon.svg'),'utf8');
-    for (const size of [16,48,128]) {
-      await iconPage.setViewportSize({width:size,height:size});
-      await iconPage.setContent(`<style>html,body{margin:0;background:transparent}svg{width:100vw;height:100vh;display:block}</style>${iconSvg}`);
-      await iconPage.screenshot({path:path.join(root,size===128?'icon.png':`icons/icon${size}.png`),omitBackground:true});
-    }
-    await iconPage.close();
-    for(const name of ['classroom-demo.png','popup-overview.png','coach-panel.png']) fs.copyFileSync(path.join(root,'artifacts',name),path.join(root,'docs','images',name));
-    fs.writeFileSync(path.join(root,'artifacts','browser-check.json'),JSON.stringify({checks,errors,passed:true},null,2));
-    console.log(`${checks} browser checks passed.`);
-  } finally { await browser?.close(); server.close(); }
-})().catch(error => { console.error(error); process.exitCode = 1; });
+    await page.evaluate(() => {
+      globalThis.demoDelay = 900;
+    });
+    await popup.locator("#tab-settings").click();
+    await popup.locator("#searchDepth").selectOption("16");
+    await page
+      .locator('#chesshelper-live-panel[data-stage="loading"]')
+      .waitFor();
+    await page.evaluate(() => {
+      demoGame.move("d4");
+      renderDemoBoard();
+    });
+    await ready();
+    assert.notEqual(await page.locator("#chp-move").innerText(), "d4");
+    pass("late response cannot replace a newer position");
+    await page.evaluate(() =>
+      chrome.storage.local.set({
+        autoplay: true,
+        timingMode: "fixed",
+        fixedDelay: 1600,
+      }),
+    );
+    await ready();
+    const ply = await page.evaluate(() => demoGame.history().length);
+    await page.evaluate(() => chrome.storage.local.set({ autoplay: false }));
+    await page.waitForTimeout(1800);
+    assert.equal(await page.evaluate(() => demoGame.history().length), ply);
+    pass("disabling autoplay cancels an already queued move");
+    await popup.locator("#enabled").uncheck();
+    await page
+      .locator("#chesshelper-live-panel")
+      .waitFor({ state: "detached" });
+    assert.equal(await page.locator("#chesshelper-arrow-overlay").count(), 0);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await popup.locator("#enabled").check();
+    await ready();
+    assert.equal(
+      await page
+        .locator("#chp-move")
+        .evaluate((el) => getComputedStyle(el).animationName),
+      "none",
+    );
+    pass(
+      "disablement clears UI and reduced motion is respected after re-enable",
+    );
+    assert.deepEqual(errors, []);
+    pass("no classroom or popup page errors");
+    for (const name of [
+      "classroom-demo.png",
+      "popup-overview.png",
+      "coach-panel.png",
+    ])
+      fs.copyFileSync(
+        path.join(root, "artifacts", name),
+        path.join(root, "docs", "images", name),
+      );
+    fs.writeFileSync(
+      path.join(root, "artifacts", "browser-check.json"),
+      JSON.stringify(
+        {
+          passed: true,
+          scope:
+            "Simulated classroom UI, not installed-engine or live-game acceptance",
+          checks,
+        },
+        null,
+        2,
+      ),
+    );
+    console.log(checks.length + " browser checks passed.");
+  } finally {
+    await browser?.close();
+    await new Promise((resolve) => server.close(resolve));
+  }
+})().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

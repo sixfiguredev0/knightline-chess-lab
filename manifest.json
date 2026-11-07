@@ -1,11 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Knightline · Chess Lab",
-  "version": "4.8.2",
-  "description": "Chess board analysis and animated suggestions for live games, puzzles, bots, and study boards.",
-  "permissions": [
-    "storage"
-  ],
+  "version": "5.0.0",
+  "description": "Local-first chess analysis with explicit board selection, complete move handling, and private diagnostics.",
+  "permissions": ["storage", "offscreen"],
   "host_permissions": [
     "https://chess.com/*",
     "https://www.chess.com/*",
@@ -26,6 +24,12 @@
   },
   "content_scripts": [
     {
+      "matches": ["https://lichess.org/*"],
+      "js": ["lichessInputBridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
       "matches": [
         "https://chess.com/*",
         "https://www.chess.com/*",
@@ -34,18 +38,19 @@
       "js": [
         "lib/chess.js",
         "appSettings.js",
+        "contracts.js",
         "engineController.js",
         "moveSelectionPolicy.js",
         "autoMoveController.js",
         "boardAdapter.js",
         "boardPosition.js",
         "boardReader.js",
+        "moveExecutor.js",
         "app.js",
+        "panelStyles.js",
         "content.js"
       ],
-      "css": [
-        "content.css"
-      ],
+      "css": ["content.css"],
       "run_at": "document_idle"
     }
   ],
@@ -55,6 +60,8 @@
     "128": "icon.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'none'; connect-src https://chess-api.com; base-uri 'none'"
-  }
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; connect-src 'self' https://chess-api.com; worker-src 'self'; base-uri 'none'"
+  },
+  "version_name": "5.0.0-dev",
+  "minimum_chrome_version": "116"
 }

@@ -1,104 +1,265 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
-const path = require('node:path');
-const root = path.resolve(__dirname, '..');
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+const path = require("node:path");
+const root = path.resolve(__dirname, "..");
 function load(files, extra = {}) {
-  const context = vm.createContext({console, setTimeout, clearTimeout, ...extra});
-  for (const file of files) vm.runInContext(fs.readFileSync(path.join(root, file), 'utf8'), context, {filename: file});
+  const context = vm.createContext({
+    console,
+    setTimeout,
+    clearTimeout,
+    ...extra,
+  });
+  for (const file of files)
+    vm.runInContext(fs.readFileSync(path.join(root, file), "utf8"), context, {
+      filename: file,
+    });
   return context;
 }
-const files = ['lib/chess.js', 'appSettings.js', 'moveSelectionPolicy.js', 'boardPosition.js'];
+const files = [
+  "lib/chess.js",
+  "appSettings.js",
+  "contracts.js",
+  "moveSelectionPolicy.js",
+  "boardPosition.js",
+];
 function pieces(game) {
   const map = {};
-  game.board().forEach((rank, row) => rank.forEach((piece, col) => { if (piece) map['abcdefgh'[col] + (8 - row)] = piece.color + piece.type; }));
+  game.board().forEach((rank, row) =>
+    rank.forEach((piece, col) => {
+      if (piece) map["abcdefgh"[col] + (8 - row)] = piece.color + piece.type;
+    }),
+  );
   return map;
 }
-test('all extension scripts load in manifest order, without a temporal-dead-zone error', async () => {
-  const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
-  const chrome = {storage: {local: {get: async value => value}, onChanged: {addListener() {}}}};
-  const scripts = manifest.content_scripts[0].js.filter(file => file !== 'content.js');
-  const context = load(scripts, {chrome}); await new Promise(resolve => setImmediate(resolve));
-  assert.equal(typeof context.BoundedRegretPolicy, 'function');
-  assert.equal(typeof context.ChessHelperApp.autoMoveController.startAnalysis, 'function');
+test("all extension scripts load in manifest order, without a temporal-dead-zone error", async () => {
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(root, "manifest.json"), "utf8"),
+  );
+  const chrome = {
+    runtime: { onMessage: { addListener() {} }, sendMessage: async () => ({}) },
+    storage: {
+      local: { get: async (value) => value || {} },
+      onChanged: { addListener() {} },
+    },
+  };
+  const scripts = manifest.content_scripts
+    .find((entry) => entry.world !== "MAIN")
+    .js.filter((file) => file !== "content.js");
+  const context = load(scripts, { chrome });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(typeof context.BoundedRegretPolicy, "function");
+  assert.equal(
+    typeof context.ChessHelperApp.autoMoveController.startAnalysis,
+    "function",
+  );
 });
-test('settings reject corrupt types, clamp numbers, and order intervals', () => {
-  const {AppSettings} = load(files);
-  const settings = AppSettings.normalize({enabled: 'false', elo: Infinity, minDelay: 8000, maxDelay: 100, minWeakInterval: 90, maxWeakInterval: -3, turnOverride: 'purple'});
-  assert.equal(settings.enabled, false); assert.equal(settings.elo, 1800);
-  assert.equal(settings.minDelay, 8000); assert.equal(settings.maxDelay, 8000);
-  assert.equal(settings.minWeakInterval, 50); assert.equal(settings.maxWeakInterval, 50); assert.equal(settings.turnOverride, 'auto');
+test("settings reject corrupt types, clamp numbers, and order intervals", () => {
+  const { AppSettings } = load(files);
+  const settings = AppSettings.normalize({
+    enabled: "false",
+    elo: Infinity,
+    minDelay: 8000,
+    maxDelay: 100,
+    minWeakInterval: 90,
+    maxWeakInterval: -3,
+    turnOverride: "purple",
+  });
+  assert.equal(settings.enabled, false);
+  assert.equal(settings.elo, 1800);
+  assert.equal(settings.minDelay, 8000);
+  assert.equal(settings.maxDelay, 8000);
+  assert.equal(settings.minWeakInterval, 50);
+  assert.equal(settings.maxWeakInterval, 50);
+  assert.equal(settings.turnOverride, "auto");
 });
-test('candidate normalization understands UCI promotion and score units', () => {
-  const {normalizeCandidate} = load(files);
-  assert.equal(normalizeCandidate({move: 'b7b8n', eval: .6}).promotion, 'n');
-  assert.equal(normalizeCandidate({move: 'b7b8n', eval: .6}).score, 60);
-  assert.equal(normalizeCandidate({move: 'Nf3'}), null);
-  assert.equal(normalizeCandidate({from: 'e2', to: 'e2'}), null);
+test("candidate normalization understands UCI promotion and score units", () => {
+  const { normalizeCandidate } = load(files);
+  assert.equal(normalizeCandidate({ move: "b7b8n", eval: 0.6 }).promotion, "n");
+  assert.equal(normalizeCandidate({ move: "b7b8n", eval: 0.6 }).score, 60);
+  assert.equal(normalizeCandidate({ move: "Nf3" }), null);
+  assert.equal(normalizeCandidate({ from: "e2", to: "e2" }), null);
 });
-test('bounded regret respects Black perspective', () => {
-  const {BoundedRegretPolicy} = load(files);
-  const policy = new BoundedRegretPolicy([{move: 'e7e5', eval: -2, turn: 'b'}, {move: 'c7c5', eval: -1.8, turn: 'b'}, {move: 'g8f6', eval: 4, turn: 'b'}], {maxCentipawnLoss: 30});
-  assert.equal(policy.select().from, 'c7');
+test("bounded regret respects Black perspective", () => {
+  const { BoundedRegretPolicy } = load(files);
+  const policy = new BoundedRegretPolicy(
+    [
+      { move: "e7e5", eval: -2, turn: "b" },
+      { move: "c7c5", eval: -1.8, turn: "b" },
+      { move: "g8f6", eval: 4, turn: "b" },
+    ],
+    { maxCentipawnLoss: 30 },
+  );
+  assert.equal(policy.select().from, "c7");
 });
-test('position history preserves castling rights and exports capturable en passant only', () => {
-  const {Chess, BoardPosition} = load(files); const tracker = new BoardPosition(), game = new Chess();
-  tracker.commit(tracker.resolve(pieces(game), {turn: 'w'}));
-  assert.equal(tracker.game.fen().split(' ')[2], 'KQkq');
-  game.move('e4'); const next = tracker.resolve(pieces(game), {});
-  assert.equal(next.turn(), 'b'); assert.equal(next.fen().split(' ')[3], '-');
-  tracker.commit(next); game.move('e5'); assert.equal(tracker.resolve(pieces(game), {}).fen(), BoardPosition.create(game.fen()).fen());
+test("position history preserves castling rights and exports capturable en passant only", () => {
+  const { Chess, BoardPosition } = load(files);
+  const tracker = new BoardPosition(),
+    game = new Chess();
+  tracker.commit(tracker.resolve(pieces(game), { turn: "w" }));
+  assert.equal(tracker.game.fen().split(" ")[2], "KQkq");
+  game.move("e4");
+  const next = tracker.resolve(pieces(game), {});
+  assert.equal(next.turn(), "b");
+  assert.equal(next.fen().split(" ")[3], "-");
+  tracker.commit(next);
+  game.move("e5");
+  assert.equal(
+    tracker.resolve(pieces(game), {}).fen(),
+    BoardPosition.create(game.fen()).fen(),
+  );
 });
-test('the screenshot opening after e4 is normalized without losing castling or turn', () => {
-  const {BoardPosition} = load(files);
-  assert.equal(BoardPosition.create('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1').fen(), 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1');
+test("the screenshot opening after e4 is normalized without losing castling or turn", () => {
+  const { BoardPosition } = load(files);
+  assert.equal(
+    BoardPosition.create(
+      "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
+    ).fen(),
+    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
+  );
 });
-test('genuine en passant remains available while pinned en passant is omitted', () => {
-  const {BoardPosition} = load(files);
-  const legal = BoardPosition.create('4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1');
-  assert.equal(legal.fen().split(' ')[3], 'd6');
-  assert.equal(legal.move({from:'e5',to:'d6'}).san,'exd6');
-  const pinned = BoardPosition.create('k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1');
-  assert.equal(pinned.fen().split(' ')[3], '-');
+test("genuine en passant remains available while pinned en passant is omitted", () => {
+  const { BoardPosition } = load(files);
+  const legal = BoardPosition.create("4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1");
+  assert.equal(legal.fen().split(" ")[3], "d6");
+  assert.equal(legal.move({ from: "e5", to: "d6" }).san, "exd6");
+  const pinned = BoardPosition.create("k3r3/8/8/3pP3/8/8/8/4K3 w - d6 0 1");
+  assert.equal(pinned.fen().split(" ")[3], "-");
 });
-test('unknown midgame placement does not invent castling rights', () => {
-  const {Chess, BoardPosition} = load(files); const game = new Chess(); game.move('e4');
-  assert.equal(new BoardPosition().resolve(pieces(game), {turn: 'b'}).fen().split(' ')[2], '-');
+test("unknown midgame placement does not invent castling rights", () => {
+  const { Chess, BoardPosition } = load(files);
+  const game = new Chess();
+  game.move("e4");
+  assert.equal(
+    new BoardPosition()
+      .resolve(pieces(game), { turn: "b" })
+      .fen()
+      .split(" ")[2],
+    "-",
+  );
 });
-test('legal validation rejects pinned moves and permits castling, en passant, and promotion', () => {
-  const {BoardPosition} = load(files);
-  assert.equal(BoardPosition.legalMove('4r1k1/8/8/8/8/8/4R3/4K3 w - - 0 1', {move: 'e2d2'}), null);
-  assert.equal(BoardPosition.legalMove('r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1', {move: 'e1g1'}).san, 'O-O');
-  assert.equal(BoardPosition.legalMove('4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1', {move: 'e5d6'}).san, 'exd6');
-  assert.equal(BoardPosition.legalMove('4k3/P7/8/8/8/8/8/4K3 w - - 0 1', {move: 'a7a8n'}).san, 'a8=N');
+test("legal validation rejects pinned moves and permits castling, en passant, and promotion", () => {
+  const { BoardPosition } = load(files);
+  assert.equal(
+    BoardPosition.legalMove("4r1k1/8/8/8/8/8/4R3/4K3 w - - 0 1", {
+      move: "e2d2",
+    }),
+    null,
+  );
+  assert.equal(
+    BoardPosition.legalMove("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1", {
+      move: "e1g1",
+    }).san,
+    "O-O",
+  );
+  assert.equal(
+    BoardPosition.legalMove("4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1", {
+      move: "e5d6",
+    }).san,
+    "exd6",
+  );
+  assert.equal(
+    BoardPosition.legalMove("4k3/P7/8/8/8/8/8/4K3 w - - 0 1", { move: "a7a8n" })
+      .san,
+    "a8=N",
+  );
 });
-test('explicit turn override works without changing the pieces', () => {
-  const {Chess, BoardPosition} = load(files); const game = new Chess(), tracker = new BoardPosition(); tracker.commit(game);
-  assert.equal(tracker.resolve(pieces(game), {override: 'b'}).turn(), 'b');
+test("explicit turn override works without changing the pieces", () => {
+  const { Chess, BoardPosition } = load(files);
+  const game = new Chess(),
+    tracker = new BoardPosition();
+  tracker.commit(game);
+  assert.equal(tracker.resolve(pieces(game), { override: "b" }).turn(), "b");
 });
-test('engine continuations become legal readable SAN and stop at invalid moves', () => {
-  const {Chess, BoardPosition} = load(files);
-  assert.equal(Array.from(BoardPosition.line(new Chess().fen(), ['e2e4', 'e7e5', 'g1f3', 'a8a1'])).join(' '), 'e4 e5 Nf3');
+test("engine continuations become legal readable SAN and stop at invalid moves", () => {
+  const { Chess, BoardPosition } = load(files);
+  assert.equal(
+    Array.from(
+      BoardPosition.line(new Chess().fen(), ["e2e4", "e7e5", "g1f3", "a8a1"]),
+    ).join(" "),
+    "e4 e5 Nf3",
+  );
 });
-test('shallow practice follows the selected interval, only in supported contexts', async () => {
+test("shallow practice follows the selected interval, only in supported contexts", async () => {
   const calls = [];
-  const context = load([...files, 'autoMoveController.js']);
-  const engine = {analyze: async (fen, elo, options) => { calls.push(options.depth); return {move: 'e2e4', candidates: [{move: 'e2e4'}]}; }};
-  const controller = new context.AutoMoveController(engine, new context.BestMovePolicy());
-  controller.configure({imperfectMoves: true, minWeakInterval: 2, maxWeakInterval: 2});
-  assert.equal((await controller.startAnalysis('position1', {allowImperfect: true})).imperfect, false);
-  assert.equal((await controller.startAnalysis('position2', {allowImperfect: true})).imperfect, true);
-  assert.equal((await controller.startAnalysis('position3', {allowImperfect: false})).imperfect, false);
+  const context = load([...files, "autoMoveController.js"]);
+  const engine = {
+    analyze: async (fen, elo, options) => {
+      calls.push(options.depth);
+      return { move: "e2e4", candidates: [{ move: "e2e4" }] };
+    },
+  };
+  const controller = new context.AutoMoveController(
+    engine,
+    new context.BestMovePolicy(),
+  );
+  controller.configure({
+    imperfectMoves: true,
+    minWeakInterval: 2,
+    maxWeakInterval: 2,
+  });
+  assert.equal(
+    (
+      await controller.startAnalysis(new context.Chess().fen(), {
+        allowImperfect: true,
+        positionKey: "position1",
+      })
+    ).imperfect,
+    false,
+  );
+  assert.equal(
+    (
+      await controller.startAnalysis(new context.Chess().fen(), {
+        allowImperfect: true,
+        positionKey: "position2",
+      })
+    ).imperfect,
+    true,
+  );
+  assert.equal(
+    (
+      await controller.startAnalysis(new context.Chess().fen(), {
+        allowImperfect: false,
+        positionKey: "position3",
+      })
+    ).imperfect,
+    false,
+  );
   assert.deepEqual(calls, [undefined, 2, undefined]);
 });
-test('failed and cancelled analysis does not advance practice scheduling or lock the controller', async () => {
-  const context = load([...files, 'autoMoveController.js']); let finish;
-  const engine = {analyze: () => new Promise(resolve => { finish = resolve; }), cancel() {}};
-  const controller = new context.AutoMoveController(engine, new context.BestMovePolicy()); controller.configure({imperfectMoves: true, minWeakInterval: 2, maxWeakInterval: 2});
-  const pending = controller.startAnalysis('old', {allowImperfect: true}); controller.invalidateAnalysis(); finish({move: 'e2e4'});
-  assert.equal(await pending, null); assert.equal(controller.moveCount, 0); assert.equal(controller.busy, false);
-  engine.analyze = async () => { throw new Error('offline'); };
-  await assert.rejects(controller.startAnalysis('new', {allowImperfect: true}), /offline/);
-  assert.equal(controller.moveCount, 0); assert.equal(controller.getState(), 'IDLE');
+test("failed and cancelled analysis does not advance practice scheduling or lock the controller", async () => {
+  const context = load([...files, "autoMoveController.js"]);
+  let finish;
+  const engine = {
+    analyze: () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    cancel() {},
+  };
+  const controller = new context.AutoMoveController(
+    engine,
+    new context.BestMovePolicy(),
+  );
+  controller.configure({
+    imperfectMoves: true,
+    minWeakInterval: 2,
+    maxWeakInterval: 2,
+  });
+  const pending = controller.startAnalysis("old", { allowImperfect: true });
+  controller.invalidateAnalysis();
+  finish({ move: "e2e4" });
+  assert.equal(await pending, null);
+  assert.equal(controller.moveCount, 0);
+  assert.equal(controller.busy, false);
+  engine.analyze = async () => {
+    throw new Error("offline");
+  };
+  await assert.rejects(
+    controller.startAnalysis("new", { allowImperfect: true }),
+    /offline/,
+  );
+  assert.equal(controller.moveCount, 0);
+  assert.equal(controller.getState(), "IDLE");
 });

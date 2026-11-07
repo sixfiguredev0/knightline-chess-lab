@@ -1,2 +1,7 @@
 * text=auto eol=lf
 *.png binary
+# Preserve pinned upstream bytes across Windows and Linux checkouts.
+vendor/stockfish/COPYING -text
+vendor/stockfish/*.wasm binary
+sources/*.nnue binary
+sources/*.tar.gz binary

@@ -1,173 +1,144 @@
 class AutoMoveController {
-  constructor(engineController, bestMovePolicy, imperfectMovePolicy = null) {
-    this.engineController = engineController;
-    this.moveSelectionPolicy = bestMovePolicy;
-    this.bestMovePolicy = bestMovePolicy;
-    this.imperfectMovePolicy = imperfectMovePolicy || bestMovePolicy;
-
-    this.state = 'IDLE';
-    this.boardAdapter = null;
+  constructor(engine, best, imperfect = null) {
+    this.engineController = engine;
+    this.bestMovePolicy = best;
+    this.imperfectMovePolicy = imperfect || best;
+    this.moveSelectionPolicy = best;
+    this.settings = {};
+    this.state = "IDLE";
     this.currentFen = null;
     this.analysisId = 0;
     this.busy = false;
-
     this.moveCount = 0;
     this.nextWeakAt = null;
     this.lastWasWeak = false;
+    this.seen = new Map();
+    this.gameId = null;
   }
-
-  attachBoardAdapter(boardAdapter) {
-    this.boardAdapter = boardAdapter;
+  attachBoardAdapter(adapter) {
+    this.boardAdapter = adapter;
   }
-
-  setState(newState) {
-    this.state = newState;
+  setState(state) {
+    this.state = state;
   }
-
   getState() {
     return this.state;
   }
-
   configure(settings = {}) {
-    this.settings = {...settings};
+    const changed =
+      this.settings.minWeakInterval !== settings.minWeakInterval ||
+      this.settings.maxWeakInterval !== settings.maxWeakInterval;
+    this.settings = { ...settings };
+    if (changed && this.nextWeakAt != null) {
+      const min = Math.max(1, Number(settings.minWeakInterval) || 8),
+        max = Math.max(min, Number(settings.maxWeakInterval) || 20);
+      this.nextWeakAt =
+        this.moveCount + min + Math.floor(Math.random() * (max - min + 1));
+    }
   }
-
   invalidateAnalysis() {
     this.analysisId++;
     this.engineController.cancel?.();
     this.busy = false;
     this.currentFen = null;
-    this.setState('IDLE');
+    this.state = "IDLE";
   }
-
   resetWeakSchedule() {
-    const min = Math.max(1, Number(this.settings?.minWeakInterval) || 8);
-    const max = Math.max(min, Number(this.settings?.maxWeakInterval) || 20);
+    const min = Math.max(1, Number(this.settings.minWeakInterval) || 8),
+      max = Math.max(min, Number(this.settings.maxWeakInterval) || 20);
     this.nextWeakAt = min + Math.floor(Math.random() * (max - min + 1));
     this.moveCount = 0;
   }
-
-  shouldUseImperfect(allowImperfect) {
-    if (!allowImperfect || !this.settings?.imperfectMoves) {
-      return false;
-    }
-
-    if (this.nextWeakAt == null) {
-      this.resetWeakSchedule();
-    }
-
-    this.moveCount++;
-
-    if (this.moveCount < this.nextWeakAt) {
-      return false;
-    }
-
+  beginGame(gameId) {
+    if (gameId === this.gameId) return;
+    this.gameId = gameId;
+    this.seen.clear();
     this.resetWeakSchedule();
-    return true;
   }
-
-  async startAnalysis(boardFen, options = {}) {
-    if (!boardFen || this.busy) return null;
-
+  shouldUseImperfect(allowed) {
+    if (!allowed || !this.settings.imperfectMoves) return false;
+    if (this.nextWeakAt == null) this.resetWeakSchedule();
+    return this.moveCount + 1 >= this.nextWeakAt;
+  }
+  async startAnalysis(fen, options = {}) {
+    if (!fen || this.busy) return null;
     const request = ++this.analysisId;
-    this.currentFen = boardFen;
+    this.currentFen = fen;
     this.busy = true;
-    this.setState('ANALYZING');
-
+    this.state = "ANALYZING";
+    if (options.gameId) this.beginGame(options.gameId);
+    const opportunity = `${options.gameId || "manual"}|${options.positionKey || fen}`,
+      fresh = !this.seen.has(opportunity);
+    const useWeak = fresh
+        ? this.shouldUseImperfect(options.allowImperfect !== false)
+        : Boolean(
+            this.seen.get(opportunity) &&
+              this.settings.imperfectMoves &&
+              options.allowImperfect !== false,
+          ),
+      bounded = useWeak && this.settings.variationPolicy === "bounded";
     try {
-      const schedule = {moveCount: this.moveCount, nextWeakAt: this.nextWeakAt};
-      const useImperfect = this.shouldUseImperfect(Boolean(options.allowImperfect));
-      const nextSchedule = {moveCount: this.moveCount, nextWeakAt: this.nextWeakAt};
-      Object.assign(this, schedule);
       const result = await this.engineController.analyze(
-        boardFen,
-        Number(this.settings?.elo) || 1800,
-        {depth: useImperfect ? 2 : undefined}
+        fen,
+        Number(this.settings.elo) || 1800,
+        { ...options, depth: useWeak && !bounded ? 2 : undefined },
       );
-
-      if (
-        request !== this.analysisId ||
-        this.currentFen !== boardFen ||
-        !result
-      ) {
-        return null;
-      }
-
-      const candidates = Array.isArray(result.candidates)
-        ? result.candidates
-        : [result];
-
-      Object.assign(this, nextSchedule);
-
+      if (request !== this.analysisId || !result) return null;
+      const candidates = result.candidates || [result];
       this.bestMovePolicy.setCandidates(candidates);
       this.imperfectMovePolicy.setCandidates(candidates);
-
-      // A scheduled practice variation uses a shallow search, matching the
-      // reference mechanic. It is not necessarily an objectively bad move.
-      this.moveSelectionPolicy = this.bestMovePolicy;
-
-      this.lastWasWeak = useImperfect;
-      this.setState('SELECTING MOVE');
-
-      const move = this.selectMove();
-
-      this.setState('IDLE');
-
+      let move = this.bestMovePolicy.select();
+      if (bounded)
+        move = new BoundedRegretPolicy(candidates, {
+          maxCentipawnLoss: this.settings.maxCentipawnLoss ?? 50,
+        }).select();
+      if (!move || !BoardPosition.legalMove(fen, move))
+        throw new KnightlineError(
+          "position",
+          "The engine result did not contain a legal move for this board.",
+        );
+      if (fresh) {
+        this.seen.set(opportunity, useWeak);
+        if (this.seen.size > 1000)
+          this.seen.delete(this.seen.keys().next().value);
+        if (this.settings.imperfectMoves) {
+          if (useWeak) this.resetWeakSchedule();
+          else this.moveCount++;
+        }
+      }
+      this.lastWasWeak = useWeak;
       return {
         analysis: result,
         move,
-        imperfect: useImperfect
+        imperfect: useWeak,
+        variationPolicy: bounded ? "bounded" : "shallow",
       };
     } finally {
       if (request === this.analysisId) {
         this.busy = false;
-        this.setState('IDLE');
+        this.state = "IDLE";
       }
     }
   }
-
   selectMove() {
     return this.moveSelectionPolicy.select();
   }
-
   waitForTurn() {
-    this.setState('WAITING FOR TURN');
+    this.state = "WAITING FOR TURN";
   }
-
   executeMove(move) {
-    this.setState('EXECUTING');
-
-    if (!move) {
-      this.setState('IDLE');
-      return false;
-    }
-
-    if (this.boardAdapter?.requestMoveExecution) {
-      return this.boardAdapter.requestMoveExecution(
-        move,
-        this.currentFen
-      );
-    }
-
-    this.setState('IDLE');
-    return false;
+    this.state = "EXECUTING";
+    return move && this.boardAdapter
+      ? this.boardAdapter.requestMoveExecution(move, this.currentFen)
+      : false;
   }
-
   verifyMove(move) {
-    this.setState('VERIFYING');
-
-    const result = this.boardAdapter?.verifyMoveResult
-      ? this.boardAdapter.verifyMoveResult(move)
-      : Boolean(move);
-
-    this.setState('IDLE');
-    return result;
+    this.state = "IDLE";
+    return this.boardAdapter?.verifyMoveResult(move) || false;
   }
-
   reset() {
     this.invalidateAnalysis();
     this.lastWasWeak = false;
   }
 }
-
 globalThis.AutoMoveController = AutoMoveController;

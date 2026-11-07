@@ -25,7 +25,7 @@ demoBoard.addEventListener('click', event => {
 });
 document.getElementById('demo-flip').onclick = () => { demoFlipped = !demoFlipped; renderDemoBoard(); };
 document.getElementById('demo-reset').onclick = async () => { globalThis.demoFail = false; await chrome.storage.local.set({imperfectMoves:false}); resetDemo(); };
-document.getElementById('demo-variation').onclick = async () => { globalThis.demoFail = false; await chrome.storage.local.set({imperfectMoves:true,minWeakInterval:1,maxWeakInterval:1}); resetDemo(); };
+document.getElementById('demo-variation').onclick = async () => { globalThis.demoFail = false; await chrome.storage.local.set({imperfectMoves:true,minWeakInterval:1,maxWeakInterval:1}); resetDemo();demoGame.move('d4');renderDemoBoard(); };
 document.getElementById('demo-error').onclick = async () => { globalThis.demoFail = true; await chrome.storage.local.set({elo:(await chrome.storage.local.get({})).elo === 1800 ? 1700 : 1800}); };
 resetDemo();
 const demoPanelObserver = new MutationObserver(() => {
@@ -33,3 +33,4 @@ const demoPanelObserver = new MutationObserver(() => {
   if (panel && slot && panel.parentElement !== slot) slot.appendChild(panel);
 });
 demoPanelObserver.observe(document.documentElement, {childList:true});
+

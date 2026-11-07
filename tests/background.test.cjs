@@ -1,56 +1,150 @@
-const test = require('node:test'), assert = require('node:assert/strict'), fs = require('node:fs'), vm = require('node:vm'), path = require('node:path');
-const root = path.resolve(__dirname,'..');
-function background(fetch) {
-  let handler;
-  const context = vm.createContext({console,setTimeout,clearTimeout,AbortController,fetch,chrome:{runtime:{onMessage:{addListener(fn){handler=fn;}},getManifest:()=>({version:'4.8.2'})},tabs:{query:async()=>[{id:42}],sendMessage:async()=>({site:'Chess.com',mode:'Analysis',result:'e4'})}}});
-  context.importScripts = (...files) => files.forEach(file => vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),context,{filename:file}));
-  vm.runInContext(fs.readFileSync(path.join(root,'background.js'),'utf8'),context,{filename:'background.js'});
-  return {analyze:(fen,elo,depth)=>vm.runInContext(`analyzeFen(${JSON.stringify(fen)},${elo},${depth})`,context),message:message=>new Promise(resolve=>handler(message,{},resolve))};
+const test = require("node:test"),
+  assert = require("node:assert/strict"),
+  fs = require("node:fs"),
+  vm = require("node:vm"),
+  path = require("node:path");
+const root = path.resolve(__dirname, ".."),
+  fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+function broker({ fallback = false, failLocal = false } = {}) {
+  let handler,
+    fetches = 0,
+    creates = 0,
+    requests = [],
+    localCalls = 0;
+  const context = vm.createContext({
+    console,
+    setTimeout,
+    clearTimeout,
+    crypto: { randomUUID: () => String(Math.random()) },
+    AbortController,
+    fetch: async (url, options) => {
+      fetches++;
+      return {
+        ok: true,
+        json: async () => ({ move: "e2e4", eval: 0.2, depth: 12 }),
+      };
+    },
+    chrome: {
+      offscreen: {
+        createDocument: async () => {
+          creates++;
+        },
+      },
+      storage: {
+        local: {
+          get: async () => ({ settingsVersion: 2, cloudFallback: fallback }),
+        },
+      },
+      runtime: {
+        id: "test-extension",
+        getManifest: () => ({ version: "5.0.0" }),
+        getContexts: async () => [],
+        onMessage: {
+          addListener: (fn) => {
+            handler = fn;
+          },
+        },
+        sendMessage: async (message) => {
+          if (message.type === "ENGINE_ANALYZE") {
+            localCalls++;
+            requests.push(message.request);
+            return failLocal
+              ? {
+                  ok: false,
+                  error: { kind: "engine", message: "worker crash" },
+                }
+              : {
+                  ok: true,
+                  data: {
+                    move: "e2e4",
+                    from: "e2",
+                    to: "e4",
+                    candidates: [{ move: "e2e4" }],
+                    source: "local",
+                    fen: message.request.fen,
+                    complete: true,
+                  },
+                };
+          }
+          return { ok: true };
+        },
+      },
+      tabs: {
+        query: async () => [{ id: 7 }],
+        sendMessage: async () => ({ site: "Lichess", mode: "Analysis" }),
+      },
+    },
+  });
+  context.importScripts = (...files) =>
+    files.forEach((file) =>
+      vm.runInContext(fs.readFileSync(path.join(root, file), "utf8"), context, {
+        filename: file,
+      }),
+    );
+  vm.runInContext(
+    fs.readFileSync(path.join(root, "background.js"), "utf8"),
+    context,
+  );
+  return {
+    setFallback(value) {
+      fallback = value;
+    },
+    analyze: (position = fen, depth) =>
+      vm.runInContext(
+        `analyzeFen(${JSON.stringify(position)},1800,${depth},{timeMs:250})`,
+        context,
+      ),
+    message: (message) =>
+      new Promise((resolve) => handler(message, {}, resolve)),
+    stats: () => ({ fetches, creates, requests, localCalls }),
+  };
 }
-const fen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-test('background preserves candidate arrays and actual depth', async()=>{
-  const bg=background(async()=>({ok:true,json:async()=>[{move:'e2e4',eval:.3,depth:12},{move:'d2d4',eval:.2,depth:12}]}));
-  const data=await bg.analyze(fen,1800);
-  assert.equal(data.candidates.length,2); assert.equal(data.from,'e2'); assert.equal(data.depth,12); assert.equal(data.requestedDepth,14);
+
+test("disabling fallback does not reuse a cached cloud result", async () => {
+  const b = broker({ fallback: true, failLocal: true });
+  assert.equal((await b.analyze()).source, "cloud");
+  b.setFallback(false);
+  await assert.rejects(b.analyze(), /worker crash/);
+  assert.equal(b.stats().fetches, 1);
 });
-test('cache deduplicates concurrent requests while keeping shallow searches separate',async()=>{
-  let calls=0;
-  const bg=background(async(url,options)=>{calls++; await new Promise(resolve=>setTimeout(resolve,10));const request=JSON.parse(options.body);return {ok:true,json:async()=>({move:'e2e4',depth:request.depth})};});
-  const [a,b]=await Promise.all([bg.analyze(fen,1800),bg.analyze(fen,1800)]);
-  assert.equal(calls,1);assert.equal(a.move,b.move);
-  assert.equal((await bg.analyze(fen,1800,2)).depth,2);assert.equal(calls,2);
-  await bg.analyze(fen,1800);assert.equal(calls,2);
+test("default broker is local-only and canonicalizes the exact e4 regression", async () => {
+  const b = broker();
+  const result = await b.analyze(
+    "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1",
+  );
+  assert.equal(result.source, "local");
+  assert.equal(b.stats().fetches, 0);
+  assert.equal(b.stats().requests[0].fen.split(" ")[3], "-");
 });
-test('engine requests exclude cookies and referrers and reject redirects',async()=>{
-  let request;
-  const bg=background(async(url,options)=>{request={url,options};return {ok:true,json:async()=>({move:'e2e4'})};});
-  await bg.analyze(fen,1800);
-  assert.equal(request.url,'https://chess-api.com/v1');
-  assert.equal(request.options.credentials,'omit');
-  assert.equal(request.options.referrerPolicy,'no-referrer');
-  assert.equal(request.options.redirect,'error');
-  assert.deepEqual(Object.keys(JSON.parse(request.options.body)).sort(),['depth','fen','maxThinkingTime','variants']);
+test("local failures are retried once without silently transmitting the position", async () => {
+  const b = broker({ failLocal: true });
+  await assert.rejects(b.analyze(), /worker crash/);
+  assert.equal(b.stats().localCalls, 2);
+  assert.equal(b.stats().fetches, 0);
 });
-test('network boundary normalizes the live-game e4 position before POSTing', async()=>{
-  let sent;
-  const bg=background(async(url,options)=>{sent=JSON.parse(options.body);return {ok:true,json:async()=>({move:'e7e5'})};});
-  await bg.analyze('rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1',1800);
-  assert.equal(sent.fen,'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1');
+test("cloud transmission requires the stored opt-in setting", async () => {
+  const b = broker({ failLocal: true, fallback: true });
+  const result = await b.analyze();
+  assert.equal(result.source, "cloud");
+  assert.equal(b.stats().fetches, 1);
 });
-test('failed requests are released and can be retried',async()=>{
-  let calls=0;const bg=background(async()=>{calls++;if(calls===1)throw new Error('offline');return {ok:true,json:async()=>({move:'g1f3'})};});
-  await assert.rejects(bg.analyze(fen,1800),/offline/);assert.equal((await bg.analyze(fen,1800)).from,'g1');
+test("invalid positions are rejected before starting engines or making network calls", async () => {
+  const b = broker();
+  await assert.rejects(b.analyze("no board"), /legal standard-chess/);
+  assert.equal(b.stats().creates, 0);
+  assert.equal(b.stats().fetches, 0);
 });
-test('invalid engine output and rate limits become useful errors',async()=>{
-  const invalid=background(async()=>({ok:true,json:async()=>({type:'info',text:'no move'})}));
-  await assert.rejects(invalid.analyze(fen,1800),/No move returned/);
-  const busy=background(async()=>({ok:false,status:429}));await assert.rejects(busy.analyze(fen,1800),/Engine is busy/);
+test("cache key keeps depth-2 practice separate from the normal search", async () => {
+  const b = broker();
+  await b.analyze();
+  await b.analyze();
+  assert.equal(b.stats().localCalls, 1);
+  await b.analyze(fen, 2);
+  assert.equal(b.stats().localCalls, 2);
+  assert.equal(b.stats().requests[1].depth, 2);
 });
-test('runtime status queries the active content tab and includes version',async()=>{
-  const bg=background(async()=>{}), result=await bg.message({type:'GET_RUNTIME_STATUS'});
-  assert.equal(result.version,'4.8.2');assert.equal(result.status.site,'Chess.com');assert.equal(result.status.mode,'Analysis');
-});
-test('invalid incoming FEN is rejected before any network call',async()=>{
-  let calls=0;const bg=background(async()=>{calls++;});const result=await bg.message({type:'ANALYZE_FEN',fen:'no board'});
-  assert.equal(result.ok,false);assert.match(result.error,/Invalid board/);assert.equal(calls,0);
+test("active-tab status includes the actual installed version", async () => {
+  const result = await broker().message({ type: "GET_RUNTIME_STATUS" });
+  assert.equal(result.version, "5.0.0");
+  assert.equal(result.status.site, "Lichess");
 });

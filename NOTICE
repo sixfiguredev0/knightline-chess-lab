@@ -1,19 +1,27 @@
-Knightline · Chess Lab
+Knightline · Chess Lab 5.0
 Copyright (c) 2026 Yasen Katevski / sixfiguredev0
 
-New Knightline contributions in this distribution are licensed under the
-Hippocratic License 3.0, core configuration. The complete terms are in LICENSE.
-Retain this copyright and attribution notice when distributing the Software.
-Modified distributions must identify their changes as required by the licence.
+This 5.0 distribution is licensed under GNU GPL version 3. The complete terms
+are in LICENSE. Preserve copyright, licence, modification and upstream notices.
 
-Earlier Chess Analysis Engine 4.7.0 code was published under the MIT License.
-That earlier grant remains valid. Its copyright and permission notice are
-preserved in docs/licenses/MIT-legacy.txt. This release does not retroactively
-revoke rights already granted under MIT.
+Earlier MIT and Hippocratic grants remain valid for the earlier versions to
+which they applied. Their texts are retained in docs/licenses/MIT-legacy.txt
+and docs/licenses/Hippocratic-legacy.txt. No earlier grant is revoked.
 
-Third-party component:
-  chess.js — copyright Jeff Hlywa and contributors, BSD-2-Clause.
+Third-party components:
+  Stockfish.js 19.0.1 lite single-threaded engine, GPLv3.
+  Copyright the Stockfish authors and Nathan Rugg; retain the upstream header,
+  vendor/stockfish/COPYING and vendor/stockfish/AUTHORS. Corresponding source,
+  exact NNUE network, and rebuild instructions are included under sources/.
+  Engine files are unmodified upstream artifacts; Knightline supplies the host.
+
+  chess.js, copyright Jeff Hlywa and contributors, BSD-2-Clause.
   See lib/LICENSE-chess.js.
 
-The supplied reference extension informed visual and practice behaviour.
-Its proprietary service, accounts, and distribution identity are not included.
+The supplied reference informed board guidance and scheduled practice behaviour.
+Its proprietary service, account implementation, and distribution identity are
+not included. The Lichess compatibility adapter is independently implemented.
+
+This is an unpublished development candidate. It changes the local engine,
+board selection/reconstruction, diagnostics, execution verification, settings,
+and interface relative to the earlier 4.8 series.

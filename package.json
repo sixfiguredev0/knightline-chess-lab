@@ -1,6 +1,6 @@
 {
   "name": "knightline-chess-lab",
-  "version": "4.8.2",
+  "version": "5.0.0",
   "private": true,
   "description": "Personal chess study extension and programming-class demo",
   "scripts": {
@@ -9,12 +9,18 @@
     "demo": "node tools/demo-server.cjs",
     "package": "node tools/package.cjs",
     "test:extension": "node tools/extension-check.cjs",
-    "test:live": "node tools/live-smoke.cjs"
+    "test:live": "node tools/live-smoke.cjs",
+    "build:assets": "node tools/build-assets.cjs",
+    "verify:vendor": "node tools/verify-vendor.cjs",
+    "test:engine": "node tools/check-local-engine.cjs",
+    "test:execution": "node tools/check-execution.cjs",
+    "test:reported-position": "node tools/check-reported-position.cjs",
+    "test:site-promotions": "node tools/check-site-moves.cjs"
   },
   "devDependencies": {
     "playwright-core": "1.62.1"
   },
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "GPL-3.0-only",
   "author": "sixfiguredev0",
   "repository": {
     "type": "git",

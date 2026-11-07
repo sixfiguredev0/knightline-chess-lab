@@ -1,58 +1,65 @@
-# Architecture and verification
+# Architecture
 
-Knightline is a plain JavaScript Manifest V3 extension. It uses a local rules library and a remote engine service. It does not bundle or implement Stockfish.
+Knightline is a plain JavaScript Manifest V3 extension with a local rules library and bundled Stockfish.js WASM. It has no application server.
 
 ```mermaid
 flowchart LR
-  B[Site board DOM] --> R[Board reader]
-  R --> P[Position tracker]
-  P --> C[Analysis controller]
-  C --> W[Service worker cache]
-  W --> E[Chess-API]
-  E --> V[Legal move validation]
-  V --> U[SVG overlay and coach panel]
-  S[Local settings] --> C
+  DOM[Selected site board] --> Reader[Site adapter]
+  Reader --> Snapshot[BoardSnapshot]
+  Snapshot --> Controller[Analysis controller]
+  Controller --> Broker[Service worker / cache]
+  Broker --> Host[Offscreen document]
+  Host --> Engine[One local Stockfish Worker]
+  Broker -. explicit opt-in after failure .-> Cloud[Chess-API]
+  Engine --> Result[Position-matched result]
+  Cloud --> Result
+  Result --> UI[SVG / isolated coach panel]
+  Result --> Queue[Explicit autoplay delay]
+  Queue --> Executor[Legal input / transition verification]
+  Executor --> DOM
 ```
+
+## Contracts and identity
+
+`BoardSnapshot` holds the selected board, board/game identity, context, player colour, orientation, turn, FEN, position key, read-only/finished state, reconstruction source and confidence. Request keys include board, game and position. Navigation and rematches invalidate the generation independently of board orientation.
+
+`AnalysisRequest/Result` carries request identity, game and position keys, time/depth budget, three candidate lines, reached depth, typed centipawn or mate scores, and completion status. Scores are normalized to White's perspective. Progress cannot trigger autoplay. Stale progress/final results are discarded.
+
+`ExecutionResult` carries the attempted move, expected/observed FEN when available, acceptance, and explicit rejection/cancellation reasons. A legal one-reply continuation can confirm a submitted move when the opponent replies before the next scan. Click dispatch alone never establishes success.
+
+## Owning modules
 
 | Module | Responsibility |
 | --- | --- |
-| `appSettings.js` | Shared defaults, normalization, and depth profiles |
-| `app.js` | Composition root and service wiring |
-| `boardReader.js` | Site DOM, piece classes, orientation, turn hints, and available FEN |
-| `boardPosition.js` | Position history, legal validation, and SAN conversion |
-| `engineController.js` | Request identity and extension messaging |
-| `background.js` | Fixed remote endpoint, 15-second timeout, cache, and request deduplication |
-| `moveSelectionPolicy.js` | Candidate normalization and selection policies |
-| `autoMoveController.js` | Analysis lifecycle and scheduled shallow practice |
-| `boardAdapter.js` | Interface between controllers and site interaction |
-| `content.js` / `content.css` | Scan coordination, SVG guidance, coach panel, and practice execution |
-| `popup.*` | Settings UI and active-tab status |
-| `tools/demo-*` | Offline demonstration, excluded from runtime packages |
+| `appSettings.js` | Versioned settings, migration, normalization, explicit opt-ins |
+| `contracts.js` | Keys, typed errors, search/delay budgets, diagnostic redaction |
+| `boardReader.js` | Site adapters, board candidates, geometry, history and turn hints |
+| `boardPosition.js` | Standard-chess validation, metadata precedence, replay and transitions |
+| `engineController.js` | Content-to-broker requests, cancellation and progress filtering |
+| `background.js` | One offscreen creation lock, bounded cache, owner routing, opt-in cloud fallback |
+| `localEngineHost.js` / `uciProtocol.js` | UCI lifecycle, capabilities, preemption, typed scores, idle release |
+| `offscreen.*` | Extension-owned engine host, surviving service-worker suspension |
+| `autoMoveController.js` | Legal candidate policy and per-game unique practice opportunities |
+| `moveExecutor.js` | Click/drag, all promotion choices, abort signals and transition verification |
+| `lichessInputBridge.js` | Narrow MAIN-world Chessground input compatibility |
+| `content.js` | Settled snapshots, UI coordination, queue cancellation and diagnostics |
+| `panel.css` / `panelStyles.js` | ShadowRoot styles; generated from editable CSS |
+| `content.css` | Board overlay styles only |
+| `popup.*` | Overview, explicit controls, board selection and private diagnostics |
+| `tools/demo-*` | Labelled simulated classroom demo, excluded from runtime packages |
 
-## The position lifecycle
+## Reconstruction
 
-1. Read logical squares independently from screen orientation.
-2. Combine the pieces with complete FEN metadata when available. Otherwise, continue known history or construct a conservative position.
-3. Wait for a stable board and dispatch one request for that position.
-4. Normalize the provider's move, validate it against the current FEN, and display it.
-5. Discard results when a newer request, drag, setting change, or position change invalidates them.
+Matching complete FEN has priority. Otherwise replay the selected board's SAN history to a matching ply, followed by observed one-ply legal transitions. Generated Lichess move tags are recognized by adjacent SAN groups, then validated by replay against the actual piece placement. Repeated placements with identical chess state but differing counters are disclosed as partial counters.
 
-Analysis is available on live, puzzle, bot, and study pages. Move automation and depth-2 practice scheduling have a separate bot/study predicate. Support for one does not enable the other.
+Without full metadata or usable history, reconstruction requires a detected or manually selected turn and conservatively omits unknown castling/en-passant state. The user can supply a legal complete FEN matching the pieces. It is scoped to that tab and cleared on a piece-placement change. The broker canonicalizes non-capturable en-passant targets before engine submission and diagnostics show both reconstructed and submitted FEN.
 
-## Search and scoring
+## Engine lifecycle
 
-The internal legacy `elo` setting maps to requested depths 8–18. The returned depth is shown without fabricating a reached depth. Scores are normalized into centipawns for policy comparisons; displayed evaluations remain from White's perspective. A bounded-regret policy reverses its comparison for Black.
+A creation lock prevents duplicate offscreen documents. The offscreen host owns one replaceable Worker, configured for one thread, Hash 32 MB, and MultiPV 3. New requests stop obsolete searches; a bounded stop timeout destroys an unresponsive Worker. Local errors are retried once. Worker errors and service-worker restarts are recoverable. No fallback position is transmitted unless cloud fallback was explicitly enabled.
 
-The reference-inspired practice scheduler requests depth 2 at a randomly selected interval. The shallow result can match the stronger engine's move. The UI describes a practice variation rather than asserting that it is incorrect.
+Active/visible board work takes priority; hidden tabs stop obsolete analysis. The worker is terminated after 60 idle seconds. The extension does not enable pondering or background game execution.
 
-FEN export is normalized for the provider: an en-passant target is retained only if a legal en-passant capture exists. The legacy rules library otherwise emits a target after every double-pawn push, and the provider rejects examples such as the uncapturable `e3` target after `1. e4`. Normalization happens in the position model and again at the service-worker request boundary. Legal capture availability includes king safety, so pinned en-passant captures are also excluded.
+## Verification boundaries
 
-## Verification layers
-
-- Node tests cover module initialization, settings, candidate normalization, legal moves, history, special moves, cancellation, caching, request privacy, and the local server's asset boundaries.
-- Offline browser tests exercise the actual popup and presentation code with a clearly identified simulated engine and playable board.
-- Extension tests load Manifest V3 in a fresh Chromium profile and exercise its actual service worker, extension origin, storage events, and messaging. The board and engine are fixtures.
-- Live smoke tests inspect the public analysis boards on both supported sites and a public Lichess live spectator board. They also send the opening regression through the real engine. They are integration samples rather than exhaustive site compatibility tests.
-- Gitleaks scans the publication tree and all locally fetched Git history. A separate publication check rejects personal filesystem paths, secret files, and unexpected tracked artifacts.
-
-No test establishes that every future site layout will work. Live bot submission, every promotion dialog, and every imported position are outside the completed verification scope.
+The deterministic integration suite uses actual MV3 content scripts and actual WASM on controlled site-markup fixtures. Move-input regressions cover full short games, both colours, click/drag, castling, en passant and promotions. Public-site tests are separate and use fresh anonymous profiles. Neither suite substitutes for the user's affected installed extension or controlled account games. See [ACCEPTANCE.md](ACCEPTANCE.md).

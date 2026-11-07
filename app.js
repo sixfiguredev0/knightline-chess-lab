@@ -4,7 +4,7 @@ const imperfectMovePolicy = new ImperfectMovePolicy([]);
 const autoMoveController = new AutoMoveController(
   engineController,
   bestMovePolicy,
-  imperfectMovePolicy
+  imperfectMovePolicy,
 );
 
 function syncControllerSettings() {
@@ -17,7 +17,7 @@ async function initApp() {
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
-  if (area !== 'local') return;
+  if (area !== "local") return;
 
   const patch = {};
   for (const [key, change] of Object.entries(changes)) {
@@ -34,5 +34,5 @@ globalThis.ChessHelperApp = {
   engineController,
   bestMovePolicy,
   imperfectMovePolicy,
-  autoMoveController
+  autoMoveController,
 };
